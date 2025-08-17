@@ -5,6 +5,10 @@ edition = "2021"
 
 [dependencies]
 
+[lib]
+path = "src/lib.rs"
+
 [[bin]]
 name = "wasabi"
+path = "src/main.rs"
 test = false
