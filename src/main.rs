@@ -3,12 +3,14 @@
 #![feature(offset_of)]
 
 use core::arch::asm;
-use core::iter::Enumerate;
+use core::cmp::min;
+use core::fmt;
+use core::fmt::Write;
 use core::mem::offset_of;
 use core::mem::size_of;
 use core::panic::PanicInfo;
 use core::ptr::null_mut;
-use core::cmp::min;
+use core::writeln;
 
 type EfiVoid = u8;
 type EfiHandle = u64;
@@ -128,15 +130,15 @@ fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
         let _ = draw_line(&mut vram, 0xffffff, cx, cy, i, rect_size);
     }
 
-    for (i, c) in "ABCDEF".chars().enumerate() {
-        draw_font_fg(&mut vram, i as i64 * 16 + 256, i as i64 * 16, 0xffffff, c)
+    let mut w = VramTextWriter::new(&mut vram);
+    for i in 0..4 {
+        writeln!(w, "i = {i}").unwrap();
     }
-    
+
     //println!("Hello, world!");
     loop {
         hlt()
     }
-
 }
 
 #[panic_handler]
@@ -208,37 +210,20 @@ fn init_vram(efi_system_table: &EfiSystemTable) -> Result<VramBufferInfo> {
     })
 }
 
-unsafe fn unchecked_draw_point<T: Bitmap>(
-    buf: &mut T,
-    color: u32,
-    x: i64,
-    y: i64,
-) {
+unsafe fn unchecked_draw_point<T: Bitmap>(buf: &mut T, color: u32, x: i64, y: i64) {
     *buf.unchecked_pixel_at_mut(x, y) = color;
 }
 
-fn draw_point<T: Bitmap>(
-    buf: &mut T,
-    color: u32,
-    x: i64,
-    y: i64,
-) -> Result<()> {
+fn draw_point<T: Bitmap>(buf: &mut T, color: u32, x: i64, y: i64) -> Result<()> {
     *(buf.pixel_at_mut(x, y).ok_or("Out of Range")?) = color;
     Ok(())
 }
 
-fn fill_rect<T: Bitmap>(
-    buf: &mut T,
-    color: u32,
-    px: i64,
-    py: i64,
-    w: i64,
-    h: i64,
-) -> Result<()> {
+fn fill_rect<T: Bitmap>(buf: &mut T, color: u32, px: i64, py: i64, w: i64, h: i64) -> Result<()> {
     if !buf.is_in_x_range(px)
-    || !buf.is_in_y_range(py)
-    || !buf.is_in_x_range(px + w - 1)
-    || !buf.is_in_y_range(py + h - 1)
+        || !buf.is_in_y_range(py)
+        || !buf.is_in_x_range(px + w - 1)
+        || !buf.is_in_y_range(py + h - 1)
     {
         return Err("Out of Range");
     }
@@ -255,30 +240,20 @@ fn fill_rect<T: Bitmap>(
 fn calc_slope_point(da: i64, db: i64, ia: i64) -> Option<i64> {
     if da < db {
         None
-    }
-    else if da == 0 {
+    } else if da == 0 {
         Some(0)
-    }
-    else if (0..=da).contains(&ia) {
+    } else if (0..=da).contains(&ia) {
         Some((2 * db * ia + da) / da / 2)
-    }
-    else {
+    } else {
         None
     }
 }
 
-fn draw_line<T: Bitmap>(
-    buf: &mut T,
-    color: u32,
-    x0: i64,
-    y0: i64,
-    x1: i64,
-    y1: i64,
-) -> Result<()> {
+fn draw_line<T: Bitmap>(buf: &mut T, color: u32, x0: i64, y0: i64, x1: i64, y1: i64) -> Result<()> {
     if !buf.is_in_x_range(x0)
-    || !buf.is_in_y_range(x1)
-    || !buf.is_in_y_range(y0)
-    || !buf.is_in_y_range(y1)
+        || !buf.is_in_y_range(x1)
+        || !buf.is_in_y_range(y0)
+        || !buf.is_in_y_range(y1)
     {
         return Err("Out of Range");
     }
@@ -287,16 +262,11 @@ fn draw_line<T: Bitmap>(
     let dy = (y1 - y0).abs();
     let sy = (y1 - y0).signum();
     if dx >= dy {
-        for (rx, ry) in (0..dx)
-        .flat_map(|rx| calc_slope_point(dx, dy, rx).map(|ry| (rx, ry)))
-        {
+        for (rx, ry) in (0..dx).flat_map(|rx| calc_slope_point(dx, dy, rx).map(|ry| (rx, ry))) {
             draw_point(buf, color, x0 + rx * sx, y0 + ry * sy)?;
         }
-    }
-    else {
-        for (rx, ry) in (0..dy)
-        .flat_map(|ry| calc_slope_point(dy, dx, ry).map(|rx| (rx, ry)))
-        {
+    } else {
+        for (rx, ry) in (0..dy).flat_map(|ry| calc_slope_point(dy, dx, ry).map(|rx| (rx, ry))) {
             draw_point(buf, color, x0 + rx * sx, y0 + ry * sy)?;
         }
     }
@@ -329,13 +299,48 @@ fn lookup_font(c: char) -> Option<[[char; 8]; 16]> {
     None
 }
 
+fn draw_str_fg<T: Bitmap>(buf: &mut T, x: i64, y: i64, color: u32, s: &str) {
+    for (i, c) in s.chars().enumerate() {
+        draw_font_fg(buf, x + i as i64 * 8, y, color, c)
+    }
+}
+
+struct VramTextWriter<'a> {
+    vram: &'a mut VramBufferInfo,
+    cursor_x: i64,
+    cursor_y: i64,
+}
+impl<'a> VramTextWriter<'a> {
+    fn new(vram: &'a mut VramBufferInfo) -> Self {
+        Self {
+            vram,
+            cursor_x: 0,
+            cursor_y: 0,
+        }
+    }
+}
+impl fmt::Write for VramTextWriter<'_> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        for c in s.chars() {
+            if c == '\n' {
+                self.cursor_y += 16;
+                self.cursor_x = 0;
+                continue;
+            }
+            draw_font_fg(self.vram, self.cursor_x, self.cursor_y, 0xffffff, c);
+            self.cursor_x += 8;
+        }
+        Ok(())
+    }
+}
+
 fn draw_font_fg<T: Bitmap>(buf: &mut T, x: i64, y: i64, color: u32, c: char) {
     if let Some(font) = lookup_font(c) {
         for (dy, row) in font.iter().enumerate() {
             for (dx, pixel) in row.iter().enumerate() {
                 let color = match pixel {
                     '*' => color,
-                    _   => continue,
+                    _ => continue,
                 };
                 let _ = draw_point(buf, color, x + dx as i64, y + dy as i64);
             }
