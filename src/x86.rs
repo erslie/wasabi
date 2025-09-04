@@ -12,7 +12,6 @@ use core::mem::offset_of;
 use core::mem::size_of;
 use core::mem::size_of_val;
 use core::pin::Pin;
-use core::u64;
 
 pub fn hlt() {
     unsafe { asm!("hlt") }
@@ -346,7 +345,7 @@ interrupt_entrypoint!(6);
 interrupt_entrypoint_with_ecode!(8);
 interrupt_entrypoint_with_ecode!(13);
 interrupt_entrypoint_with_ecode!(14);
-interrupt_entrypoint_with_ecode!(32);
+interrupt_entrypoint!(32);
 
 extern "sysv64" {
     fn interrupt_entrypoint3();
@@ -638,7 +637,7 @@ impl TaskStateSegment64 {
     pub fn new() -> Self {
         let rsp0 = unsafe { Self::alloc_interrupt_stack() };
         let mut ist = [0u64; 8];
-        for ist in ist[1..7].iter_mut() {
+        for ist in ist[1..=7].iter_mut() {
             *ist = unsafe { Self::alloc_interrupt_stack() };
         }
         let tss64 = TaskStateSegment64Inner {
@@ -682,6 +681,8 @@ pub const BIT_PRESENT: u64 = 1u64 << 47;
 pub const BIT_CS_LONG_MODE: u64 = 1u64 << 53;
 pub const BIT_CS_READABLE: u64 = 1u64 << 41;
 pub const BIT_DS_WRITABLE: u64 = 1u64 << 41;
+pub const BIT_DPL0: u64 = 0u64 << 45;
+pub const BIT_DPL1: u64 = 3u64 << 45;
 
 #[repr(u64)]
 enum GdtAttr {
@@ -798,6 +799,3 @@ pub fn trigger_debug_interrupt() {
     info!("trigger_debug_interrupt");
     unsafe { asm!("int3") }
 }
-
-
-
