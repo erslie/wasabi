@@ -56,14 +56,12 @@ pub unsafe fn write_cr3(table: *const PML4) {
         in("rax") table)
 }
 
-// pub fn read_cr3() -> *mut RootPageTable {
-//     let mut cr3: *mut PML4;
-//     unsafe {
-//         asm!("mov rax, cr3",
-//             out("rax") cr3)
-//     }
-//     cr3
-// }
+pub fn flush_tlb() {
+    unsafe {
+        write_cr3(read_cr3());
+    }
+}
+
 pub const PAGE_SIZE: usize = 4096;
 const ATTR_MASK: u64 = 0xFFF;
 const ATTR_PRESENT: u64 = 1 << 0;

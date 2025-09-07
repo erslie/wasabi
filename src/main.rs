@@ -19,6 +19,8 @@ use wasabi::print::hexdump;
 use wasabi::qemu::exit_qemu;
 use wasabi::qemu::QemuExitCode;
 
+use wasabi::serial;
+use wasabi::serial::SerialPort;
 use wasabi::uefi::init_vram;
 use wasabi::uefi::locate_loaded_image_protocol;
 use wasabi::uefi::EfiHandle;
@@ -28,9 +30,12 @@ use wasabi::uefi::VramTextWriter;
 
 
 use wasabi::warn;
+use wasabi::x86::flush_tlb;
 use wasabi::x86::hlt;
 use wasabi::x86::init_exceptions;
+use wasabi::x86::read_cr3;
 use wasabi::x86::trigger_debug_interrupt;
+use wasabi::x86::PageAttr;
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
@@ -96,6 +101,14 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     init_paging(&memory_map);
     info!("Now we are using our own page table");
 
+    let page_table = read_cr3();
+    unsafe {
+        (*page_table)
+            .create_mapping(0, 4096, 0, PageAttr::NotPresent)
+            .expect("Failed to unmap page 0");
+    }
+    flush_tlb();
+
     loop {
         hlt()
     }
@@ -103,6 +116,8 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    let mut serial_writer = SerialPort::default();
+    writeln!(serial_writer, "Panic").unwrap();
     exit_qemu(QemuExitCode::Fail);
 }
 
