@@ -7,6 +7,9 @@ use core::panic::PanicInfo;
 use core::writeln;
 
 use wasabi::error;
+
+use wasabi::executor::block_on;
+
 use wasabi::graphics::draw_test_pattern;
 use wasabi::graphics::fill_rect;
 use wasabi::graphics::Bitmap;
@@ -36,6 +39,8 @@ use wasabi::x86::init_exceptions;
 use wasabi::x86::read_cr3;
 use wasabi::x86::trigger_debug_interrupt;
 use wasabi::x86::PageAttr;
+
+
 
 #[no_mangle]
 fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
@@ -108,6 +113,12 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
             .expect("Failed to unmap page 0");
     }
     flush_tlb();
+
+    let result = block_on(async {
+        info!("Hello from the async world!");
+        Ok(())
+    });
+    info!("block_on_completed! result = {result:?}");
 
     loop {
         hlt()
