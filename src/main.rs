@@ -8,8 +8,10 @@ use core::writeln;
 
 use wasabi::error;
 
+use wasabi::executor::yield_execution;
 use wasabi::executor::Executor;
 use wasabi::executor::Task;
+
 use wasabi::graphics::draw_test_pattern;
 use wasabi::graphics::fill_rect;
 use wasabi::graphics::Bitmap;
@@ -112,14 +114,25 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     }
     flush_tlb();
 
-    let task = Task::new(async {
-        info!("Hello from the async world!");
+    let task1 = Task::new(async {
+        for i in 100..=103 {
+            info!("{i}");
+            yield_execution().await;
+        }
+        Ok(())
+    });
+    let task2 = Task::new(async {
+        for i in 200..=203 {
+            info!("{i}");
+            yield_execution().await;
+        }
         Ok(())
     });
 
     let mut executor = Executor::new();
-    executor.enqueue(task);
-    Executor::run(executor)
+    executor.enqueue(task1);
+    executor.enqueue(task2);
+    Executor::run(executor);
     
 }
 
