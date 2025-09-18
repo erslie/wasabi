@@ -24,7 +24,7 @@ pub fn busy_loop_hint() {
 
 pub fn read_io_port_u8(port: u16) -> u8 {
     let mut data: u8;
-    unsafe  {
+    unsafe {
         asm!("in al, dx",
             out("al") data,
             in("dx") port)
@@ -33,13 +33,12 @@ pub fn read_io_port_u8(port: u16) -> u8 {
 }
 
 pub fn write_io_port_u8(port: u16, data: u8) {
-    unsafe  {
+    unsafe {
         asm!("out dx, al",
             in("al") data,
             in("dx") port)
     }
 }
-
 
 pub fn read_cr3() -> *mut PML4 {
     let mut cr3: *mut PML4;
@@ -74,8 +73,7 @@ const ATTR_CACHE_DISABLE: u64 = 1 << 4;
 pub enum PageAttr {
     NotPresent = 0,
     ReadWriteKernel = ATTR_PRESENT | ATTR_WRITABLE,
-    ReadWriteIo = 
-        ATTR_PRESENT | ATTR_WRITABLE | ATTR_WRITE_THROUGH | ATTR_CACHE_DISABLE,
+    ReadWriteIo = ATTR_PRESENT | ATTR_WRITABLE | ATTR_WRITE_THROUGH | ATTR_CACHE_DISABLE,
 }
 #[derive(Debug, Eq, PartialEq)]
 pub enum TranslationResult {
@@ -141,11 +139,9 @@ impl<const LEVEL: usize, NEXT> Entry<LEVEL, NEXT> {
         if self.is_present() {
             Err("Page is already populated")
         } else {
-            let next: Box<NEXT> =
-            Box::new(unsafe { MaybeUninit::zeroed().assume_init() });
-            self.value =
-                Box::into_raw(next) as u64 | PageAttr::ReadWriteKernel as u64;
-                Ok(self)
+            let next: Box<NEXT> = Box::new(unsafe { MaybeUninit::zeroed().assume_init() });
+            self.value = Box::into_raw(next) as u64 | PageAttr::ReadWriteKernel as u64;
+            Ok(self)
         }
     }
     fn ensure_populated(&mut self) -> Result<&mut Self> {
@@ -156,12 +152,12 @@ impl<const LEVEL: usize, NEXT> Entry<LEVEL, NEXT> {
         }
     }
 }
-impl<const LEVEL: usize, NEXT>fmt::Display for Entry<LEVEL, NEXT> {
+impl<const LEVEL: usize, NEXT> fmt::Display for Entry<LEVEL, NEXT> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.format(f)
     }
 }
-impl<const LEVEL: usize, NEXT>fmt::Debug for Entry<LEVEL, NEXT> {
+impl<const LEVEL: usize, NEXT> fmt::Debug for Entry<LEVEL, NEXT> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.format(f)
     }
@@ -171,9 +167,9 @@ impl<const LEVEL: usize, NEXT>fmt::Debug for Entry<LEVEL, NEXT> {
 pub struct Table<const LEVEL: usize, NEXT> {
     entry: [Entry<LEVEL, NEXT>; 512],
 }
-impl<const LEVEL: usize, NEXT: core::fmt::Debug>Table<LEVEL, NEXT> {
+impl<const LEVEL: usize, NEXT: core::fmt::Debug> Table<LEVEL, NEXT> {
     fn format(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "L{}Table @ {:#p} {{",LEVEL, self)?;
+        writeln!(f, "L{}Table @ {:#p} {{", LEVEL, self)?;
         for i in 0..512 {
             let e = &self.entry[i];
             if !e.is_present() {
@@ -184,7 +180,7 @@ impl<const LEVEL: usize, NEXT: core::fmt::Debug>Table<LEVEL, NEXT> {
         writeln!(f, "}}")
     }
     pub fn next_level(&self, index: usize) -> Option<&NEXT> {
-        self.entry.get(index).and_then(| e| e.table().ok())
+        self.entry.get(index).and_then(|e| e.table().ok())
     }
     const fn index_shift() -> usize {
         (LEVEL - 1) * 9 + 12
@@ -193,7 +189,7 @@ impl<const LEVEL: usize, NEXT: core::fmt::Debug>Table<LEVEL, NEXT> {
         ((addr >> Self::index_shift()) & 0b1_1111_1111) as usize
     }
 }
-impl<const LEVEL: usize, NEXT: fmt::Debug>fmt::Debug for Table<LEVEL, NEXT> {
+impl<const LEVEL: usize, NEXT: fmt::Debug> fmt::Debug for Table<LEVEL, NEXT> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.format(f)
     }
@@ -204,7 +200,7 @@ pub type PD = Table<2, PT>;
 pub type PDPT = Table<3, PD>;
 pub type PML4 = Table<4, PDPT>;
 
-impl PML4 { 
+impl PML4 {
     pub fn new() -> Box<Self> {
         Box::new(Self::default())
     }
@@ -218,26 +214,43 @@ impl PML4 {
         phys: u64,
         attr: PageAttr,
     ) -> Result<()> {
-        if virt_start & ATTR_MASK != 0 {
-            return Err("Invalid virt_start");
-        }
-        if virt_end & ATTR_MASK != 0 {
-            return Err("Invalid virt_end");
-        }
-        if phys & ATTR_MASK != 0 {
-            return Err("Invalid phys");
-        }
-        for addr in (virt_start..virt_end).step_by(PAGE_SIZE) {
-            let index = self.calc_index(addr);
-            let table = self.entry[index].ensure_populated()?.table_mut()?;
+        let table = self;
+        let mut addr = virt_start;
+        loop {
             let index = table.calc_index(addr);
             let table = table.entry[index].ensure_populated()?.table_mut()?;
-            let index = table.calc_index(addr);
-            let table = table.entry[index].ensure_populated()?.table_mut()?;
-            let index = table.calc_index(addr);
-            let pte = &mut table.entry[index];
-            pte.set_page(phys + addr - virt_start, attr)?;
+
+            loop {
+                let index = table.calc_index(addr);
+                let table = table.entry[index].ensure_populated()?.table_mut()?;
+
+                loop {
+                    let index = table.calc_index(addr);
+                    let table = table.entry[index].ensure_populated()?.table_mut()?;
+
+                    loop {
+                        let index = table.calc_index(addr);
+                        let pte = &mut table.entry[index];
+                        let phys_addr = phys + addr - virt_start;
+                        pte.set_page(phys_addr, attr)?;
+                        addr = addr.wrapping_add(PAGE_SIZE as u64);
+                        if index + 1 >= (1 << 9) || addr >= virt_end {
+                            break;
+                        }
+                    }
+                    if index + 1 >= (1 << 9) || addr >= virt_end {
+                        break;
+                    }
+                }
+                if index + 1 >= (1 << 9) || addr >= virt_end {
+                    break;
+                }
+            }
+            if index + 1 >= (1 << 9) || addr >= virt_end {
+                break;
+            }
         }
+        info!("Succeeded create mapping!");
         Ok(())
     }
 }
@@ -310,7 +323,7 @@ struct GeneralRegisterContext {
     r15: u64,
     rcx: u64,
 }
-const _: () = assert!(size_of::<GeneralRegisterContext>() == (16 -1) * 8);
+const _: () = assert!(size_of::<GeneralRegisterContext>() == (16 - 1) * 8);
 
 #[allow(dead_code)]
 #[repr(C)]
@@ -335,7 +348,7 @@ struct InterruptInfo {
     ctx: InterruptContext,
 }
 const _: () = assert!(size_of::<InterruptInfo>() == (16 + 4 + 1) * 8 + 8 + 512);
-impl  fmt::Debug for InterruptInfo {
+impl fmt::Debug for InterruptInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -356,7 +369,7 @@ impl  fmt::Debug for InterruptInfo {
             r12: {:#018X}, r13: {:#018X},
             r14: {:#018X}, r15: {:#018X},
         }}",
-        self.ctx.rip,
+            self.ctx.rip,
             self.ctx.cs,
             self.ctx.rsp,
             self.ctx.ss,
@@ -382,24 +395,23 @@ impl  fmt::Debug for InterruptInfo {
             self.greg.r15,
         )
     }
-    
-} 
+}
 
 macro_rules! interrupt_entrypoint {
     ($index:literal) => {
         global_asm!(concat!(
-        ".global interrupt_entrypoint",
-        stringify!($index),
-        "\n",
-        "interrupt_entrypoint",
-        stringify!($index),
-        ":\n",
-        "push 0 // No error code\n",
-        "push rcx //Save rcx first to reuse\n",
-        "mov rcx,",
-        stringify!($index),
-        "\n",
-        "jmp inthandler_common"
+            ".global interrupt_entrypoint",
+            stringify!($index),
+            "\n",
+            "interrupt_entrypoint",
+            stringify!($index),
+            ":\n",
+            "push 0 // No error code\n",
+            "push rcx //Save rcx first to reuse\n",
+            "mov rcx,",
+            stringify!($index),
+            "\n",
+            "jmp inthandler_common"
         ));
     };
 }
@@ -769,8 +781,7 @@ pub const BIT_DPL1: u64 = 3u64 << 45;
 
 #[repr(u64)]
 enum GdtAttr {
-    KernelCode =
-        BIT_TYPE_CODE | BIT_PRESENT | BIT_CS_LONG_MODE | BIT_CS_READABLE,
+    KernelCode = BIT_TYPE_CODE | BIT_PRESENT | BIT_CS_LONG_MODE | BIT_CS_READABLE,
     KernelData = BIT_TYPE_DATA | BIT_PRESENT | BIT_DS_WRITABLE,
 }
 
@@ -819,16 +830,14 @@ impl GdtWrapper {
         }
     }
 }
-impl Default for  GdtWrapper {
+impl Default for GdtWrapper {
     fn default() -> Self {
         let tss64 = TaskStateSegment64::new();
         let gdt = Gdt {
             null_segment: GdtSegmentDescriptor::null(),
             kernel_code_segment: GdtSegmentDescriptor::new(GdtAttr::KernelCode),
             kernel_data_segment: GdtSegmentDescriptor::new(GdtAttr::KernelData),
-            task_state_segment: TaskStateSegment64Descriptor::new(
-                tss64.phys_addr(),
-            ),
+            task_state_segment: TaskStateSegment64Descriptor::new(tss64.phys_addr()),
         };
         let gdt = Box::pin(gdt);
         GdtWrapper { inner: gdt, tss64 }
