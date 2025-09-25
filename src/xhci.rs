@@ -18,6 +18,7 @@ use crate::slice::Sliceable;
 use crate::volatile::Volatile;
 use crate::x86::busy_loop_hint;
 use alloc::boxed::Box;
+use alloc::collections::BTreeSet;
 use alloc::collections::VecDeque;
 use alloc::rc::Rc;
 use alloc::rc::Weak;
@@ -198,7 +199,7 @@ impl PciXhciDriver {
                 };
                 info!("xhci: v/p/s = {vendor:?}/{product:?}/{serial:?}");
                 let descriptors =
-                    Self::request_config_descriptor_and_rest(&xhc, slot, &mut ctrl_ep_ring).await?;
+                    Self::request_config_descriptor_and_reset(&xhc, slot, &mut ctrl_ep_ring).await?;
                 info!("xhci: {descriptors:?}");
                 let mut last_config: Option<ConfigDescriptor> = None;
                 let mut boot_keyboard_interface: Option<InterfaceDescriptor> = None;
@@ -242,9 +243,28 @@ impl PciXhciDriver {
                     UsbHidProtocol::BootProtocol as u8,
                 )
                 .await?;
+                let mut prev_pressed= BTreeSet::new();
                 loop {
-                    let report = Self::request_hid_report(&xhc, slot, &mut ctrl_ep_ring).await?;
-                    info!("xhci: hid report: {report:?}");
+                    let pressed = {
+                        let report = Self::request_hid_report(
+                            &xhc,
+                            slot,
+                            &mut ctrl_ep_ring,
+                        )
+                        .await?;
+                        BTreeSet::from_iter(
+                            report.into_iter().skip(2).filter(|id| *id != 0),
+                        )
+                    };
+                    let diff = pressed.symmetric_difference(&prev_pressed);
+                    for id in diff {
+                        if pressed.contains(id) {
+                            info!("usb_keyboard: key down: {id}");
+                        } else {
+                            info!("usb_keyboard: key up: {id}");
+                        } 
+                    }
+                    prev_pressed = pressed;
                 }
             }
         }
@@ -347,7 +367,7 @@ impl PciXhciDriver {
         .await?;
         Ok(buf.as_ref().get_ref().to_vec())
     }
-    async fn request_config_descriptor_and_rest(
+    async fn request_config_descriptor_and_reset(
         xhc: &Rc<Controller>,
         slot: u8,
         ctrl_ep_ring: &mut CommandRing,
