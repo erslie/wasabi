@@ -1,6 +1,6 @@
 use crate::acpi::AcpiRsdpStruct;
-use crate::result::Result;
 use crate::graphics::Bitmap;
+use crate::result::Result;
 use core::mem::offset_of;
 use core::mem::size_of;
 use core::ptr::null_mut;
@@ -127,8 +127,7 @@ impl<'a> Iterator for MemoryMapIterator<'a> {
             None
         } else {
             let e: &EfiMemoryDescriptor = unsafe {
-                &*(self.map.memory_map_buffer.as_ptr().add(self.ofs)
-                    as *const EfiMemoryDescriptor)
+                &*(self.map.memory_map_buffer.as_ptr().add(self.ofs) as *const EfiMemoryDescriptor)
             };
             self.ofs += self.map.descriptor_size;
             Some(e)
@@ -153,9 +152,8 @@ pub struct EfiBootServicesTable {
         interface: *mut *mut EfiVoid,
     ) -> EfiStatus,
     _reserved1: [u64; 9],
-    exit_boot_services:
-        extern "win64" fn(image_handle: EfiHandle, map_key: usize) -> EfiStatus,
-    
+    exit_boot_services: extern "win64" fn(image_handle: EfiHandle, map_key: usize) -> EfiStatus,
+
     _reserved4: [u64; 10],
     locate_protocol: extern "win64" fn(
         protocol: *const EfiGuid,
@@ -197,10 +195,7 @@ impl EfiSystemTable {
     pub fn boot_services(&self) -> &EfiBootServicesTable {
         self.boot_services
     }
-    fn loolup_config_table(
-        &self,
-        guid: &EfiGuid,
-    ) -> Option<EfiConfigurationTable> {
+    fn loolup_config_table(&self, guid: &EfiGuid) -> Option<EfiConfigurationTable> {
         for i in 0..self.number_of_table_entries {
             let ct = unsafe { &*self.configuration_table.add(i) };
             if ct.vendor_guid == *guid {
@@ -211,7 +206,7 @@ impl EfiSystemTable {
     }
     pub fn acpi_table(&self) -> Option<&'static AcpiRsdpStruct> {
         self.loolup_config_table(&EFI_ACPI_TABLE_GUID)
-        .map(|t| unsafe { &*(t.vendor_table as *const AcpiRsdpStruct) })
+            .map(|t| unsafe { &*(t.vendor_table as *const AcpiRsdpStruct) })
     }
 }
 
@@ -273,8 +268,7 @@ pub fn locate_loaded_image_protocol(
     let status = ((efi_system_table.boot_services.handle_protocol)(
         image_handle,
         &EFI_LOADED_IMAGE_PROTOCOL_GUID,
-        &mut graphic_output_protocol as *mut *mut EfiLoadedImageProtocol
-            as *mut *mut EfiVoid,
+        &mut graphic_output_protocol as *mut *mut EfiLoadedImageProtocol as *mut *mut EfiVoid,
     ));
     if status != EfiStatus::Success {
         return Err("Failed to locate graphics output protocol");
@@ -325,13 +319,10 @@ pub fn exit_from_efi_boot_services(
     loop {
         let status = efi_system_table.boot_services.get_memory_map(memory_map);
         assert_eq!(status, EfiStatus::Success);
-        let status = (efi_system_table.boot_services.exit_boot_services)(
-            image_handle,
-            memory_map.map_key,
-        );
+        let status =
+            (efi_system_table.boot_services.exit_boot_services)(image_handle, memory_map.map_key);
         if status == EfiStatus::Success {
             break;
         }
     }
 }
-

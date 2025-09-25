@@ -67,7 +67,7 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
 
     let (_gdt, _idt) = init_exceptions();
     init_paging(&memory_map);
-    
+
     init_hpet(acpi);
 
     init_pci(acpi);

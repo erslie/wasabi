@@ -31,7 +31,7 @@ pub struct IoBoxInner<T: Sized> {
     data: T,
     _pinned: PhantomPinned,
 }
-impl <T: Sized> IoBoxInner<T> {
+impl<T: Sized> IoBoxInner<T> {
     pub fn new(data: T) -> Self {
         Self {
             data,
@@ -43,14 +43,14 @@ impl <T: Sized> IoBoxInner<T> {
 pub struct IoBox<T: Sized> {
     inner: Pin<Box<IoBoxInner<T>>>,
 }
-impl<T: Sized> IoBox<T> { 
+impl<T: Sized> IoBox<T> {
     pub fn new() -> Self {
-    let inner = Box::pin(IoBoxInner::new(unsafe {
-        MaybeUninit::<T>::zeroed().assume_init()
-    }));
-    let this = Self { inner };
-    disable_cache(&this);
-    this
+        let inner = Box::pin(IoBoxInner::new(unsafe {
+            MaybeUninit::<T>::zeroed().assume_init()
+        }));
+        let this = Self { inner };
+        disable_cache(&this);
+        this
     }
 
     pub unsafe fn get_unchecked_mut(&mut self) -> &mut T {
@@ -73,5 +73,3 @@ impl<T: Sized> Default for IoBox<T> {
 fn io_box_new() {
     IoBox::<u64>::new();
 }
-
-

@@ -22,7 +22,7 @@ impl VendorDeviceId {
         write!(
             f,
             "(vendor: {:#06X}, device: {:#06X})",
-            self.vendor, self.device, 
+            self.vendor, self.device,
         )
     }
 }
@@ -48,26 +48,21 @@ const SHIFT_DEVICE: usize = 3;
 const MASK_FUNCTION: usize = 0b0000_0000_0000_0111;
 const SHIFT_FUNCTION: usize = 0;
 impl BusDeviceFunction {
-
     pub fn new(bus: usize, device: usize, function: usize) -> Result<Self> {
-        if !(0..256).contains(&bus)
-        || !(0..32).contains(&device)
-        || !(0..8).contains(&function)
-        {
+        if !(0..256).contains(&bus) || !(0..32).contains(&device) || !(0..8).contains(&function) {
             Err("PCI bus devive function out of range")
         } else {
             Ok(Self {
-                id: ((bus << SHIFT_BUS)
-                | (device << SHIFT_DEVICE)
-                | (function << SHIFT_FUNCTION)) as u16,
+                id: ((bus << SHIFT_BUS) | (device << SHIFT_DEVICE) | (function << SHIFT_FUNCTION))
+                    as u16,
             })
         }
     }
-    
+
     pub fn bus(&self) -> usize {
         ((self.id as usize) & MASK_BUS) >> SHIFT_BUS
     }
-    
+
     pub fn device(&self) -> usize {
         ((self.id as usize) & MASK_DEVICE) >> SHIFT_DEVICE
     }
@@ -126,18 +121,14 @@ impl<T> ConfigRegisters<T> {
         if !(0..256).contains(&byte_offset) || byte_offset % size_of::<T>() != 0 {
             Err("PCI ConfigRegisters read out range")
         } else {
-            unsafe {
-                Ok(read_volatile(ecm_base.add(byte_offset / size_of::<T>())))
-            }
+            unsafe { Ok(read_volatile(ecm_base.add(byte_offset / size_of::<T>()))) }
         }
     }
     fn write(ecm_base: *mut T, byte_offset: usize, data: T) -> Result<()> {
         if !(0..256).contains(&byte_offset) || byte_offset % size_of::<T>() != 0 {
             Err("PCI ConfigRegisters write out of range")
         } else {
-            unsafe {
-                write_volatile(ecm_base.add(byte_offset / size_of::<T>()), data)
-            }
+            unsafe { write_volatile(ecm_base.add(byte_offset / size_of::<T>()), data) }
             Ok(())
         }
     }
@@ -149,8 +140,7 @@ pub struct Pci {
 impl Pci {
     pub fn new(mcfg: &AcpiMcfgDescriptor) -> Self {
         assert!(mcfg.num_of_entries() == 1);
-        let pci_config_space_base = 
-            mcfg.entry(0).expect("Out of Range").base_address() as usize;
+        let pci_config_space_base = mcfg.entry(0).expect("Out of Range").base_address() as usize;
         let pci_config_space_end = pci_config_space_base + (1 << 24);
         Self {
             ecm_range: pci_config_space_base..pci_config_space_end,
@@ -159,17 +149,10 @@ impl Pci {
     pub fn ecm_base<T>(&self, id: BusDeviceFunction) -> *mut T {
         (self.ecm_range.start + ((id.id as usize) << 12)) as *mut T
     }
-    pub fn read_register_u16(
-        &self,
-        bdf: BusDeviceFunction,
-        byte_offset: usize,
-    ) -> Result<u16> {
+    pub fn read_register_u16(&self, bdf: BusDeviceFunction, byte_offset: usize) -> Result<u16> {
         ConfigRegisters::read(self.ecm_base(bdf), byte_offset)
     }
-    pub fn read_vendor_id_and_device_id(
-        &self,
-        id: BusDeviceFunction,
-    ) -> Option<VendorDeviceId> {
+    pub fn read_vendor_id_and_device_id(&self, id: BusDeviceFunction) -> Option<VendorDeviceId> {
         let vendor = self.read_register_u16(id, 0).ok()?;
         let device = self.read_register_u16(id, 2).ok()?;
         if vendor == 0xFFFF || device == 0xFFFF {
@@ -192,11 +175,7 @@ impl Pci {
             }
         }
     }
-    pub fn read_register_u32(
-        &self,
-        bdf: BusDeviceFunction,
-        byte_offset: usize,
-    ) -> Result<u32> {
+    pub fn read_register_u32(&self, bdf: BusDeviceFunction, byte_offset: usize) -> Result<u32> {
         ConfigRegisters::read(self.ecm_base(bdf), byte_offset)
     }
     pub fn write_register_u32(
@@ -207,14 +186,10 @@ impl Pci {
     ) -> Result<()> {
         ConfigRegisters::write(self.ecm_base(bdf), byte_offset, data)
     }
-    pub fn read_register_u64(
-        &self,
-        bdf: BusDeviceFunction,
-        byte_offset: usize,
-    ) -> Result<u64> {
+    pub fn read_register_u64(&self, bdf: BusDeviceFunction, byte_offset: usize) -> Result<u64> {
         let lo = self.read_register_u32(bdf, byte_offset)?;
         let hi = self.read_register_u32(bdf, byte_offset + 4)?;
-        Ok(((hi as u64) << 32) | (lo as u64)) 
+        Ok(((hi as u64) << 32) | (lo as u64))
     }
     pub fn write_register_u64(
         &self,
@@ -240,29 +215,15 @@ impl Pci {
             Err("Unexpected BAR0 Type")
         }
     }
-    pub fn set_command_and_status_flags(
-        &self,
-        bdf: BusDeviceFunction,
-        flags: u32,
-    ) -> Result<()> {
+    pub fn set_command_and_status_flags(&self, bdf: BusDeviceFunction, flags: u32) -> Result<()> {
         let cmd_and_status = self.read_register_u32(bdf, 0x04)?;
-        self.write_register_u32(
-            bdf,
-            0x04,
-            flags | cmd_and_status,
-        )
+        self.write_register_u32(bdf, 0x04, flags | cmd_and_status)
     }
     pub fn enable_bus_master(&self, bdf: BusDeviceFunction) -> Result<()> {
-        self.set_command_and_status_flags(
-            bdf, 
-            1 << 2,
-        )
+        self.set_command_and_status_flags(bdf, 1 << 2)
     }
     pub fn disable_interrupt(&self, bdf: BusDeviceFunction) -> Result<()> {
-        self.set_command_and_status_flags(
-            bdf,
-            1 << 10,
-        )
+        self.set_command_and_status_flags(bdf, 1 << 10)
     }
 }
 
@@ -282,7 +243,8 @@ impl BarMem64 {
         let vend = self.addr() as u64 + self.size();
         unsafe {
             with_current_page_table(|pt| {
-                pt.create_mapping(vstart, vend, vstart, PageAttr::ReadWriteIo).expect("Failed to create mapping")
+                pt.create_mapping(vstart, vend, vstart, PageAttr::ReadWriteIo)
+                    .expect("Failed to create mapping")
             })
         }
     }
@@ -297,4 +259,3 @@ impl fmt::Debug for BarMem64 {
         )
     }
 }
-

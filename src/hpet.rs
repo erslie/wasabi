@@ -58,7 +58,7 @@ impl Hpet {
                     | TIMER_CONFIG_USE_PERIODIC_MODE
                     | TIMER_CONFIG_LEVEL_TRIGGER
                     | (0b11111 << 9));
-                    timer.write_config(config);
+                timer.write_config(config);
             }
             write_volatile(&mut hpet.registers.main_counter_value, 0);
             hpet.globally_enable();
@@ -88,11 +88,9 @@ pub fn set_global_hpet(hpet: Hpet) {
 }
 pub fn global_timestamp() -> Duration {
     if let Some(hpet) = &*HPET.lock() {
-        let ns = 
-            hpet.main_counter() as u128 * 1_000_000_000 / hpet.freq() as u128;
+        let ns = hpet.main_counter() as u128 * 1_000_000_000 / hpet.freq() as u128;
         Duration::from_nanos(ns as u64)
     } else {
         Duration::ZERO
     }
 }
-

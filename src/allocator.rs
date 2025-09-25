@@ -17,7 +17,7 @@ use core::ptr::null_mut;
 
 pub fn round_up_to_nearest_pow2(v: usize) -> Result<usize> {
     1usize
-        .checked_shl(usize::BITS -v.wrapping_sub(1).leading_zeros())
+        .checked_shl(usize::BITS - v.wrapping_sub(1).leading_zeros())
         .ok_or("Out of Range")
 }
 
@@ -46,8 +46,7 @@ const HEADER_SIZE: usize = size_of::<Header>();
 const _: () = assert!(HEADER_SIZE == 32);
 // Size of Header should be power of 2
 const _: () = assert!(HEADER_SIZE.count_ones() == 1);
-pub const LAYOUT_PAGE_4K: Layout =
-    unsafe { Layout::from_size_align_unchecked(4096, 4096) };
+pub const LAYOUT_PAGE_4K: Layout = unsafe { Layout::from_size_align_unchecked(4096, 4096) };
 impl Header {
     fn can_provide(&self, size: usize, align: usize) -> bool {
         // This check is rough - actual size needed may be smaller.
@@ -107,15 +106,12 @@ impl Header {
             header_for_allocated.next_header = self.next_header.take();
             if header_for_allocated.end_addr() != self.end_addr() {
                 // Make a Header for padding
-                let mut header_for_padding = unsafe {
-                    Self::new_from_addr(header_for_allocated.end_addr())
-                };
+                let mut header_for_padding =
+                    unsafe { Self::new_from_addr(header_for_allocated.end_addr()) };
                 header_for_padding.is_allocated = false;
-                header_for_padding.size =
-                    self.end_addr() - header_for_allocated.end_addr();
-                    size_used += header_for_padding.size;
-                header_for_padding.next_header =
-                    header_for_allocated.next_header.take();
+                header_for_padding.size = self.end_addr() - header_for_allocated.end_addr();
+                size_used += header_for_padding.size;
+                header_for_padding.next_header = header_for_allocated.next_header.take();
                 header_for_allocated.next_header = Some(header_for_padding);
             }
             // Shrink self
@@ -241,8 +237,7 @@ mod test {
         for align in [1, 2, 4, 8, 16, 32, 4096] {
             for e in pointers.iter_mut() {
                 *e = ALLOCATOR.alloc_with_options(
-                    Layout::from_size_align(1234, align)
-                    .expect("Failed to create Layout"),
+                    Layout::from_size_align(1234, align).expect("Failed to create Layout"),
                 );
                 assert!(*e as usize != 0);
                 assert!((*e as usize) % align == 0);
@@ -256,12 +251,10 @@ mod test {
             let mut pointers = [null_mut::<u8>(); 100];
             for e in pointers.iter_mut() {
                 *e = ALLOCATOR.alloc_with_options(
-                    Layout::from_size_align(1234, align)
-                    .expect("Failed to create Layout"),
+                    Layout::from_size_align(1234, align).expect("Failed to create Layout"),
                 );
                 assert!(*e as usize != 0);
                 assert!((*e as usize) % align == 0);
-
             }
         }
     }
@@ -357,11 +350,5 @@ mod test {
                 assert!(unsafe { *pointer.add(k) } == i as u8);
             }
         }
-
     }
-
 }
-
-
-
-

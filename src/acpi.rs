@@ -31,7 +31,7 @@ impl<'a> XsdtIterator<'a> {
         XsdtIterator { table, index: 0 }
     }
 }
-impl <'a> Iterator for XsdtIterator<'a> {
+impl<'a> Iterator for XsdtIterator<'a> {
     type Item = &'static SystemDescriptionTableHeader;
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.table.num_of_entries() {
@@ -39,8 +39,7 @@ impl <'a> Iterator for XsdtIterator<'a> {
         } else {
             self.index += 1;
             Some(unsafe {
-                &*(self.table.entry(self.index - 1)
-                as *const SystemDescriptionTableHeader)
+                &*(self.table.entry(self.index - 1) as *const SystemDescriptionTableHeader)
             })
         }
     }
@@ -53,24 +52,19 @@ struct Xsdt {
 const _: () = assert!(size_of::<Xsdt>() == 36);
 
 impl Xsdt {
-    fn find_table(
-        &self,
-        sig: &'static [u8; 4],
-    ) -> Option<&'static SystemDescriptionTableHeader> {
+    fn find_table(&self, sig: &'static [u8; 4]) -> Option<&'static SystemDescriptionTableHeader> {
         self.iter().find(|&e| e.signature() == sig)
     }
     fn header_size(&self) -> usize {
         size_of::<Self>()
     }
     fn num_of_entries(&self) -> usize {
-        (self.header.length as usize - self.header_size())
-        / size_of::<*const u8>()
+        (self.header.length as usize - self.header_size()) / size_of::<*const u8>()
     }
     unsafe fn entry(&self, index: usize) -> *const u8 {
-        ((self as *const Self as *const u8).add(self.header_size())
-        as *const *const u8)
-        .add(index) 
-        .read_unaligned()
+        ((self as *const Self as *const u8).add(self.header_size()) as *const *const u8)
+            .add(index)
+            .read_unaligned()
     }
     fn iter(&self) -> XsdtIterator {
         XsdtIterator::new(self)
@@ -79,13 +73,11 @@ impl Xsdt {
 
 trait AcpiTable {
     const SIGNATURE: &'static [u8; 4];
-    type Table; 
+    type Table;
     fn new(header: &SystemDescriptionTableHeader) -> &Self::Table {
         header.expect_signature(Self::SIGNATURE);
-        let mcfg: &Self::Table = unsafe {
-            &*(header as *const SystemDescriptionTableHeader
-                as *const Self::Table)
-        };
+        let mcfg: &Self::Table =
+            unsafe { &*(header as *const SystemDescriptionTableHeader as *const Self::Table) };
         mcfg
     }
 }
@@ -122,8 +114,8 @@ impl AcipHpetDescriptor {
     pub fn base_address(&self) -> Result<&'static mut HpetRegisters> {
         unsafe {
             self.address
-            .address_in_memory_space()
-            .map(|addr| &mut *(addr as *mut HpetRegisters))
+                .address_in_memory_space()
+                .map(|addr| &mut *(addr as *mut HpetRegisters))
         }
     }
 }
@@ -142,7 +134,7 @@ pub struct AcpiRsdpStruct {
 }
 impl AcpiRsdpStruct {
     fn xsdt(&self) -> &Xsdt {
-        unsafe { &*(self.xsdt as * const Xsdt) }
+        unsafe { &*(self.xsdt as *const Xsdt) }
     }
     pub fn hpet(&self) -> Option<&AcipHpetDescriptor> {
         let xsdt = self.xsdt();
@@ -171,17 +163,15 @@ impl AcpiMcfgDescriptor {
         size_of::<Self>()
     }
     pub fn num_of_entries(&self) -> usize {
-        (self.header.length as usize - self.header_size())
-        / size_of::<EcamEntry>()
+        (self.header.length as usize - self.header_size()) / size_of::<EcamEntry>()
     }
     pub fn entry(&self, index: usize) -> Option<&EcamEntry> {
         if index >= self.num_of_entries() {
             None
         } else {
             Some(unsafe {
-                &*((self as *const Self as *const u8).add(self.header_size())
-                as *const EcamEntry)
-                .add(index)
+                &*((self as *const Self as *const u8).add(self.header_size()) as *const EcamEntry)
+                    .add(index)
             })
         }
     }
@@ -212,4 +202,3 @@ impl fmt::Display for EcamEntry {
         )
     }
 }
-

@@ -22,7 +22,7 @@ impl<T: Default> Default for Volatile<T> {
         }
     }
 }
-impl <T: Clone> Clone for Volatile<T> {
+impl<T: Clone> Clone for Volatile<T> {
     fn clone(&self) -> Self {
         let this = MaybeUninit::uninit();
         let mut this: Self = unsafe { this.assume_init() };
@@ -30,7 +30,7 @@ impl <T: Clone> Clone for Volatile<T> {
         this
     }
 }
-impl <T> Volatile<T> {
+impl<T> Volatile<T> {
     pub fn read(&self) -> T {
         unsafe { read_volatile(&self.value) }
     }
@@ -38,24 +38,19 @@ impl <T> Volatile<T> {
         unsafe { write_volatile(&mut self.value, new_value) }
     }
 }
-impl <
-    T: Shl<usize, Output = T>
-        + Shr<usize, Output = T>
-        + BitOr<Output = T>
-        + BitAnd<Output = T>
-        + Not<Output = T>
-        + From<u8>
-        + Sub<T, Output = T>
-        + PartialEq<T>
-        + Copy,
+impl<
+        T: Shl<usize, Output = T>
+            + Shr<usize, Output = T>
+            + BitOr<Output = T>
+            + BitAnd<Output = T>
+            + Not<Output = T>
+            + From<u8>
+            + Sub<T, Output = T>
+            + PartialEq<T>
+            + Copy,
     > Volatile<T>
 {
-    pub fn write_bits(
-        &mut self,
-        shift: usize,
-        width: usize,
-        value: T,
-    ) -> Result<()> {
+    pub fn write_bits(&mut self, shift: usize, width: usize, value: T) -> Result<()> {
         let mask = (T::from(1) << width) - T::from(1);
         if mask & value != value {
             return Err("Value out of range");
@@ -72,7 +67,7 @@ impl <
 
 #[test_case]
 fn write_bits_tests() {
-    let mut v : Volatile<u16> = Volatile::default();
+    let mut v: Volatile<u16> = Volatile::default();
     assert_eq!(v.read(), 0b0000_0000_0000_0000);
     assert!(v.write_bits(0, 1, 0b00).is_ok());
     assert_eq!(v.read(), 0b0000_0000_0000_0000);

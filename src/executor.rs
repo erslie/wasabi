@@ -12,8 +12,8 @@ use core::future::Future;
 use core::panic::Location;
 use core::pin::Pin;
 use core::ptr::null;
-use core::sync::atomic::Ordering;
 use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering;
 use core::task::Context;
 use core::task::Poll;
 use core::task::RawWaker;
@@ -47,8 +47,8 @@ impl<T> Debug for Task<T> {
 }
 
 fn no_op_raw_waker() -> RawWaker {
-    fn no_op(_: *const()) {}
-    fn clone(_: *const()) -> RawWaker {
+    fn no_op(_: *const ()) {}
+    fn clone(_: *const ()) -> RawWaker {
         no_op_raw_waker()
     }
     let vtable = &RawWakerVTable::new(clone, no_op, no_op, no_op);
@@ -59,9 +59,7 @@ fn no_op_waker() -> Waker {
     unsafe { Waker::from_raw(no_op_raw_waker()) }
 }
 
-pub fn block_on<T>(
-    future: impl Future<Output = Result<T>> + 'static,
-) -> Result<T> {
+pub fn block_on<T>(future: impl Future<Output = Result<T>> + 'static) -> Result<T> {
     let mut task = Task::new(future);
     loop {
         let waker = no_op_waker();
@@ -94,8 +92,7 @@ impl Executor {
     pub fn run(executor: &Mutex<Option<Self>>) -> ! {
         info!("Executor starts running...");
         loop {
-            let task
-                = executor.lock().as_mut().map(|e| e.task_queue().pop_front());
+            let task = executor.lock().as_mut().map(|e| e.task_queue().pop_front());
             if let Some(Some(mut task)) = task {
                 let waker = no_op_waker();
                 let mut context = Context::from_waker(&waker);
@@ -171,4 +168,3 @@ pub fn start_global_executor() -> ! {
     info!("Starting global executor loop");
     Executor::run(&GLOBAL_EXECUTOR);
 }
-

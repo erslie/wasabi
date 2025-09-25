@@ -8,7 +8,6 @@ pub struct SerialPort {
     base: u16,
 }
 impl SerialPort {
-
     pub fn new(base: u16) -> Self {
         Self { base }
     }
@@ -21,7 +20,7 @@ impl SerialPort {
         write_io_port_u8(self.base + 1, 0x00);
         write_io_port_u8(self.base + 3, 0x80);
         const BAUD_DIVISORL: u16 = 0x0001;
-        write_io_port_u8(self.base,(BAUD_DIVISORL & 0xff) as u8);
+        write_io_port_u8(self.base, (BAUD_DIVISORL & 0xff) as u8);
         write_io_port_u8(self.base + 1, (BAUD_DIVISORL >> 8) as u8);
         write_io_port_u8(self.base + 3, 0x03);
         write_io_port_u8(self.base + 2, 0xC7);
@@ -36,7 +35,7 @@ impl SerialPort {
         }
         write_io_port_u8(self.base + 4, 0x0f);
         Ok(())
-    } 
+    }
 
     pub fn send_char(&self, c: char) {
         while (read_io_port_u8(self.base + 5) & 0x20) == 0 {
@@ -62,7 +61,6 @@ impl SerialPort {
             Some(c)
         }
     }
-    
 }
 impl fmt::Write for SerialPort {
     fn write_str(&mut self, s: &str) -> fmt::Result {

@@ -8,7 +8,7 @@ use core::panic::PanicInfo;
 pub trait Testable {
     fn run(&self, writer: &mut SerialPort);
 }
-impl<T> Testable for T 
+impl<T> Testable for T
 where
     T: Fn(),
 {
@@ -35,4 +35,3 @@ fn panic(info: &PanicInfo) -> ! {
     writeln!(sw, "PANIC during test: {info:?}").unwrap();
     exit_qemu(QemuExitCode::Fail);
 }
-

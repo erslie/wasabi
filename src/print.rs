@@ -6,8 +6,7 @@ use core::fmt;
 use core::mem::size_of;
 use core::slice;
 
-static GLOBAL_VRAM_WRITER: Mutex<Option<BitmapTextWriter<VramBufferInfo>>> = 
-    Mutex::new(None);
+static GLOBAL_VRAM_WRITER: Mutex<Option<BitmapTextWriter<VramBufferInfo>>> = Mutex::new(None);
 
 pub fn set_global_vram(vram: VramBufferInfo) {
     assert!(GLOBAL_VRAM_WRITER.lock().is_none());
@@ -88,7 +87,7 @@ fn hexdump_bytes(bytes: &[u8]) {
         while i < 16 {
             print!(" ");
             i += 1;
-        } 
+        }
         print!("|");
         for c in ascii[0..old_i].iter() {
             print!(
@@ -105,7 +104,5 @@ fn hexdump_bytes(bytes: &[u8]) {
 }
 
 pub fn hexdump<T: Sized>(data: &T) {
-    hexdump_bytes(unsafe {
-        slice::from_raw_parts(data as *const T as *const u8, size_of::<T>())
-    })
+    hexdump_bytes(unsafe { slice::from_raw_parts(data as *const T as *const u8, size_of::<T>()) })
 }

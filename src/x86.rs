@@ -74,11 +74,11 @@ pub unsafe fn put_current_page_table(mut table: ManuallyDrop<Box<PML4>>) {
 pub unsafe fn with_current_page_table<F>(callback: F)
 where
     F: FnOnce(&mut PML4),
- {
+{
     let mut table = take_current_page_table();
     callback(&mut table);
     put_current_page_table(table)
- }
+}
 
 pub fn disable_cache<T: Sized>(io_box: &IoBox<T>) {
     let region = io_box.as_ref();
@@ -91,7 +91,6 @@ pub fn disable_cache<T: Sized>(io_box: &IoBox<T>) {
         })
     }
 }
-
 
 pub const PAGE_SIZE: usize = 4096;
 const ATTR_MASK: u64 = 0xFFF;

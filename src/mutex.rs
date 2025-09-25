@@ -23,7 +23,7 @@ impl<'a, T> MutexGuard<'a, T> {
         }
     }
 }
-unsafe impl<'a, T> Sync for MutexGuard<'a, T> {} 
+unsafe impl<'a, T> Sync for MutexGuard<'a, T> {}
 impl<'a, T> Deref for MutexGuard<'a, T> {
     type Target = T;
 
@@ -37,9 +37,9 @@ impl<'a, T> DerefMut for MutexGuard<'a, T> {
     }
 }
 impl<'a, T> Drop for MutexGuard<'a, T> {
-   fn drop(&mut self) {
-       self.mutex.is_taken.store(false, Ordering::SeqCst)
-   } 
+    fn drop(&mut self) {
+        self.mutex.is_taken.store(false, Ordering::SeqCst)
+    }
 }
 impl<'a, T> Debug for MutexGuard<'a, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -59,7 +59,7 @@ impl<T: Sized> Debug for Mutex<T> {
         write!(
             f,
             "Mutex @ {}:{}",
-            self.created_at_file,self.created_at_line
+            self.created_at_file, self.created_at_line
         )
     }
 }
@@ -103,10 +103,7 @@ impl<T: Sized> Mutex<T> {
             self.taker_line_num.load(Ordering::SeqCst),
         )
     }
-    pub fn under_locked<R: Sized>(
-        &self,
-        f: &dyn Fn(&mut T) -> Result<R>,
-    ) -> Result<R> {
+    pub fn under_locked<R: Sized>(&self, f: &dyn Fn(&mut T) -> Result<R>) -> Result<R> {
         let mut locked = self.lock();
         f(&mut *locked)
     }
