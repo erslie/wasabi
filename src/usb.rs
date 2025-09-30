@@ -1,7 +1,6 @@
 extern crate alloc;
 
 use crate::info;
-use crate::pin::IntoPinnedMutableSlice;
 use crate::result::Result;
 use crate::slice::Sliceable;
 use crate::xhci::CommandRing;

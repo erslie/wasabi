@@ -1,5 +1,4 @@
 use crate::result::Result;
-use crate::volatile;
 use core::mem::MaybeUninit;
 use core::ops::BitAnd;
 use core::ops::BitOr;

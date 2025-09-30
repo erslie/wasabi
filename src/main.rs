@@ -48,7 +48,7 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     info!("info");
     warn!("warn");
     error!("error");
-    hexdump_struct(efi_system_table);
+    // hexdump_struct(efi_system_table);
 
     let mut vram = init_vram(efi_system_table).expect("init_vram failed");
 
