@@ -49,7 +49,7 @@ struct XhcRegisters {
 pub struct PciXhciDriver {}
 impl PciXhciDriver {
     pub fn supports(vp: VendorDeviceId) -> bool {
-        const VDI_LIST: [VendorDeviceId; 3] = [
+        const VDI_LIST: [VendorDeviceId; 4] = [
             VendorDeviceId {
                 vendor: 0x1b36,
                 device: 0x000d,
@@ -61,6 +61,11 @@ impl PciXhciDriver {
             VendorDeviceId {
                 vendor: 0x8086,
                 device: 0x02ed,
+            },
+            // NIC Intel e1000e
+            VendorDeviceId {
+                vendor: 0x8086,
+                device: 0x10D3,
             },
         ];
         VDI_LIST.contains(&vp)

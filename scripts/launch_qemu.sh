@@ -19,7 +19,9 @@ qemu-system-x86_64 \
   -device qemu-xhci \
   -device usb-kbd \
   -device usb-tablet \
-  -device isa-debug-exit,iobase=0xf4,iosize=0x01
+  -device isa-debug-exit,iobase=0xf4,iosize=0x01 \
+  -netdev user,id=net0 \
+  -device e1000e,netdev=net0,mac=52:54:00:12:34:56 
 RETCODE=$?
 set -e
 if [ $RETCODE -eq 0 ]; then

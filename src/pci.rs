@@ -171,6 +171,8 @@ impl Pci {
                     } else {
                         continue;
                     }
+                } else {
+                    info!("Not implemented device...{vd}");
                 }
             }
         }
