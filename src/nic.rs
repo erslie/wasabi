@@ -14,7 +14,13 @@ static mut R_DESC_RING_BUFFER: [RDescriptor; R_DESC_NUM] = [RDescriptor::new(); 
 impl Nic {
 
     pub fn new(mmio_base: u64) -> Self {
-
+        let t_desc: *mut TDescriptor;
+        let r_desc: *mut RDescriptor;
+        unsafe {
+            t_desc = T_DESC_RING_BUFFER.as_mut_ptr();
+            r_desc = R_DESC_RING_BUFFER.as_mut_ptr();
+        };
+        Nic { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc }
     }
 
     pub fn initialize(&mut self, accept_all: bool) {
@@ -55,7 +61,7 @@ pub struct TDescriptor {
 }
 
 impl TDescriptor {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         TDescriptor { 
             buffer_address: 0, 
             length: 0, 
@@ -80,7 +86,7 @@ struct RDescriptor {
     special: u16,
 }
 impl RDescriptor {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         RDescriptor { 
             buffer_address: 0, 
             length: 0, 
