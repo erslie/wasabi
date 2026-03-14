@@ -1,9 +1,48 @@
-use crate::info;
+use crate::{executor::spawn_global, info, mmio, pci::{BarMem64, BusDeviceFunction, VendorDeviceId}, println};
+use crate::pci::Pci;
+use crate::result::Result;
 
+pub struct NicDriver {
+    nic: Nic,
+}
+impl NicDriver {
+    pub fn supports(vp: VendorDeviceId) -> bool {
+        const VDI_LIST: [VendorDeviceId; 1] = [
+            // NIC Intel e1000e
+            VendorDeviceId {
+                vendor: 0x8086,
+                device: 0x10D3, 
+            },
+        ];
+        VDI_LIST.contains(&vp)
+    }
+
+    pub fn attach(pci: &Pci, bdf: BusDeviceFunction) -> Result<()> {
+
+        info!("Nic found at: {bdf:?}");
+        pci.disable_interrupt(bdf)?;
+        pci.enable_bus_master(bdf)?;
+
+        //bar
+        let bar0 = pci.try_bar0_mem64(bdf)?;
+        info!("[BAR0_NIC]{:?}", bar0);
+        bar0.disable_cache();
+
+        let mmio_base = bar0.addr() as u8;
+        info!("[NIC] mmio_base:{}", mmio_base);
+
+        //mmio
+        Nic::new(mmio_base);
+        // let regs: = nic::set_nic_reg;
+
+        // spawn_global(Self::run());
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct Nic {
-    mmio_base: u64,
+    mmio_base: u8,
     t_descriptor: *mut TDescriptor,
     r_descriptor: *mut RDescriptor,
 }
@@ -13,13 +52,15 @@ static mut R_DESC_RING_BUFFER: [RDescriptor; R_DESC_NUM] = [RDescriptor::new(); 
 
 impl Nic {
 
-    pub fn new(mmio_base: u64) -> Self {
+    pub fn new(mmio_base: u8) -> Self {
         let t_desc: *mut TDescriptor;
         let r_desc: *mut RDescriptor;
         unsafe {
             t_desc = T_DESC_RING_BUFFER.as_mut_ptr();
             r_desc = R_DESC_RING_BUFFER.as_mut_ptr();
         };
+        info!("[NIC] t_desc_ring_buffer:{:?}", t_desc);
+        info!("[NIC] r_desc_ring_buffer:{:?}", r_desc);
         Nic { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc }
     }
 
@@ -30,17 +71,16 @@ impl Nic {
             self.r_descriptor = R_DESC_RING_BUFFER.as_mut_ptr();
         }
 
-        info!("[NIC]{:?}", self.t_descriptor);
-        info!("[NIC]{:?}", self.r_descriptor);
+
     }
 
     fn get_nic_reg(reg_offset: u16) -> u32 {
         0
     }
 
-    fn set_nic_reg(reg_offset: u16, value: u32) {
+    // fn set_nic_reg(bar0: &BarMem64) -> Result<> {
 
-    }
+    // }
 
 }
 

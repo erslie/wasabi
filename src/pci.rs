@@ -1,6 +1,7 @@
 use crate::acpi::AcpiMcfgDescriptor;
 use crate::error;
 use crate::info;
+use crate::nic::NicDriver;
 use crate::result::Result;
 use crate::x86::with_current_page_table;
 use crate::x86::PageAttr;
@@ -165,6 +166,16 @@ impl Pci {
         for bdf in BusDeviceFunction::iter() {
             if let Some(vd) = self.read_vendor_id_and_device_id(bdf) {
                 info!("{vd}");
+                //Nic
+                if NicDriver::supports(vd) {
+                    if let Err(e) = NicDriver::attach(self, bdf) {
+                        info!("NIC error {}", e);
+                    } else {
+                        info!("NIC Not implemted device... {vd}");
+                    }
+                }
+
+                //USB
                 if PciXhciDriver::supports(vd) {
                     if let Err(e) = PciXhciDriver::attach(self, bdf) {
                         error!("PCI: driver attach() failed: {e:?}")
@@ -212,11 +223,20 @@ impl Pci {
             self.write_register_u64(bdf, 0x10, !0u64)?;
             let size = 1 + !(self.read_register_u64(bdf, 0x10)? & !0b1111);
             self.write_register_u64(bdf, 0x10, bar0)?;
+            info!("[Bar064]{:?}, size:0b{:04b}, bar0:0b{:04b}", addr, size, bar0);
+            Ok(BarMem64 { addr, size })
+        } else if bar0 & 0b0111 == 0b0000 {
+            let bar0_32 = bar0 as u32;
+            let addr = (bar0 & !0b1111) as *mut u8;
+            self.write_register_u32(bdf, 0x10, !0u32)?;
+            let size = 1 + !(self.read_register_u32(bdf, 0x10)? & !0b1111) as u64;
+            self.write_register_u32(bdf, 0x10, bar0_32)?;
             Ok(BarMem64 { addr, size })
         } else {
             Err("Unexpected BAR0 Type")
         }
     }
+
     pub fn set_command_and_status_flags(&self, bdf: BusDeviceFunction, flags: u32) -> Result<()> {
         let cmd_and_status = self.read_register_u32(bdf, 0x04)?;
         self.write_register_u32(bdf, 0x04, flags | cmd_and_status)
