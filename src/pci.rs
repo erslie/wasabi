@@ -226,10 +226,12 @@ impl Pci {
             info!("[Bar064]{:?}, size:0b{:04b}, bar0:0b{:04b}", addr, size, bar0);
             Ok(BarMem64 { addr, size })
         } else if bar0 & 0b0111 == 0b0000 {
-            let bar0_32 = bar0 as u32;
-            let addr = (bar0 & !0b1111) as *mut u8;
+            let bar0_32 = (bar0 & 0xFFFF_FFFF) as u32;
+            let addr_val = (bar0_32 & !0xF) as u64;
+            let addr = addr_val as *mut u8;
             self.write_register_u32(bdf, 0x10, !0u32)?;
-            let size = 1 + !(self.read_register_u32(bdf, 0x10)? & !0b1111) as u64;
+            let lo = self.read_register_u32(bdf, 0x10)? & !0b1111u32;
+            let size = ( (!lo).wrapping_add(1) ) as u64;
             self.write_register_u32(bdf, 0x10, bar0_32)?;
             Ok(BarMem64 { addr, size })
         } else {

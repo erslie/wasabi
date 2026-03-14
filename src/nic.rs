@@ -32,7 +32,7 @@ impl NicDriver {
         info!("[NIC] mmio_base:{}", mmio_base);
 
         //mmio
-        Nic::new(mmio_base);
+        // Nic::new(mmio_base);
         // let regs: = nic::set_nic_reg;
 
         // spawn_global(Self::run());
