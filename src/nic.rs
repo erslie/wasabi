@@ -1,6 +1,10 @@
+extern crate alloc;
+use core::ops::Add;
+
 use crate::{executor::spawn_global, info, mmio, pci::{BarMem64, BusDeviceFunction, VendorDeviceId}, println};
 use crate::pci::Pci;
 use crate::result::Result;
+use alloc::vec::Vec;
 
 pub struct NicDriver {
     nic: Nic,
@@ -32,23 +36,28 @@ impl NicDriver {
         info!("[NIC] mmio_base:{}", mmio_base);
 
         //mmio
-        // Nic::new(mmio_base);
-        // let regs: = nic::set_nic_reg;
+        Nic::new(mmio_base);
+        // let regs: = nic::write_register;
 
         // spawn_global(Self::run());
         Ok(())
     }
 }
 
+
 #[derive(Debug)]
 pub struct Nic {
     mmio_base: u8,
     t_descriptor: *mut TDescriptor,
     r_descriptor: *mut RDescriptor,
+    packet_buffer: u64,
 }
 
 static mut T_DESC_RING_BUFFER: [TDescriptor; T_DESC_NUM] = [TDescriptor::new(); T_DESC_NUM];
 static mut R_DESC_RING_BUFFER: [RDescriptor; R_DESC_NUM] = [RDescriptor::new(); R_DESC_NUM];
+
+const PACKET_SIZE: usize = 2048;
+const T_DESC_CMD_RS :u8 = 0b00001000;
 
 impl Nic {
 
@@ -61,7 +70,7 @@ impl Nic {
         };
         info!("[NIC] t_desc_ring_buffer:{:?}", t_desc);
         info!("[NIC] r_desc_ring_buffer:{:?}", r_desc);
-        Nic { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc }
+        Nic { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc, packet_buffer: 0 }
     }
 
     pub fn initialize(&mut self, accept_all: bool) {
@@ -69,18 +78,37 @@ impl Nic {
         unsafe {
             self.t_descriptor = T_DESC_RING_BUFFER.as_mut_ptr();
             self.r_descriptor = R_DESC_RING_BUFFER.as_mut_ptr();
+
+            for i in 0..=T_DESC_NUM {
+                T_DESC_RING_BUFFER[i].buffer_address = 0;
+                T_DESC_RING_BUFFER[i].length = 0;
+                T_DESC_RING_BUFFER[i].checksum_offset = 0;
+                T_DESC_RING_BUFFER[i].command = T_DESC_CMD_RS;
+                T_DESC_RING_BUFFER[i].status = 0;
+                T_DESC_RING_BUFFER[i].reserved = 0;
+                T_DESC_RING_BUFFER[i].checksum_start_field = 0;
+                T_DESC_RING_BUFFER[i].special = 0;
+            }
+
+            self.packet_buffer = [[0; PACKET_SIZE]; R_DESC_NUM].as_ptr() as u64;
+            for i in 0..=R_DESC_NUM {
+                R_DESC_RING_BUFFER[i].buffer_address = (self.packet_buffer as *const u64).add(i * PACKET_SIZE) as u64;
+                R_DESC_RING_BUFFER[i].status = 0;
+                R_DESC_RING_BUFFER[i].errors = 0;
+            }
+
         }
 
 
     }
 
-    fn get_nic_reg(reg_offset: u16) -> u32 {
+    fn get_register(offset: u16) -> u32 {
         0
     }
 
-    // fn set_nic_reg(bar0: &BarMem64) -> Result<> {
-
-    // }
+    fn write_register(bar0: &BarMem64) -> Result<()> {
+        Ok(())
+    }
 
 }
 
