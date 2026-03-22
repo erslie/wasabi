@@ -69,20 +69,35 @@ const CTRL_FD: u16        = 0x00000001;
 const CTRL_ASDE: u16      = 0x000000020;
 const CTRL_SLU: u16       = 0x000000040;
 
-const TCTL_OFFSET:u16    = 0x00400;
-const TIPG_OFFSET:u16    = 0x00410;
-const TDBAL_OFFSET:u16   = 0x03800;
-const TDBAH_OFFSET:u16   = 0x03804;
-const TDLEN_OFFSET:u16   = 0x03808;
-const TDH_OFFSET:u16     = 0x03810;
-const TDT_OFFSET:u16     = 0x03818;
-const TCTL_EN:u32        = 0x00000002;
-const TCTL_PSP:u32       = 0x00000008;
-const TCTL_CT:u32        = 0x00000100;
-const TCTL_COLD:u32      = 0x00400000;
-const TIPG_IPGT:u16      = 8;
-const TIPG_IPGR1:u16     = 8;
-const TIPG_IPGR2:u16     = 6;
+const TCTL_OFFSET: u16    = 0x00400;
+const TIPG_OFFSET: u16    = 0x00410;
+const TDBAL_OFFSET: u16   = 0x03800;
+const TDBAH_OFFSET: u16   = 0x03804;
+const TDLEN_OFFSET: u16   = 0x03808;
+const TDH_OFFSET: u16     = 0x03810;
+const TDT_OFFSET: u16     = 0x03818;
+const TCTL_EN: u32        = 0x00000002;
+const TCTL_PSP: u32       = 0x00000008;
+const TCTL_CT: u32        = 0x00000100;
+const TCTL_COLD: u32      = 0x00400000;
+const TIPG_IPGT: u16      = 8;
+const TIPG_IPGR1: u16     = 8;
+const TIPG_IPGR2: u16     = 6;
+
+const RCTL_OFFSET: u16    = 0x00100;
+const RDBAL_OFFSET: u16   = 0x02800;
+const RDBAH_OFFSET: u16   = 0x02804;
+const RDLEN_OFFSET: u16   = 0x02808;
+const RDH_OFFSET: u16     = 0x02810;
+const RDT_OFFSET: u16     = 0x02818;
+const RDTR_OFFSET: u16    = 0x02820;
+const RADV_OFFSET: u16    = 0x0282C;
+const RAL_OFFSET : u16    = 0x05400;
+const RAH_OFFSET: u16     = 0x05404;
+const RCTL_EN: u32        = 0x00000002;
+const RCTL_BAM: u32       = 0x00008000;
+const RDTR_DELAY: u32     = 0x00001000;
+const RADV_DELAY: u32     = 0x00001000;
 
 impl Nic {
 
@@ -145,6 +160,16 @@ impl Nic {
         self.write_register(TDLEN_OFFSET, (size_of::<TDescriptor>() * T_DESC_NUM) as u32);
         self.write_register(TDH_OFFSET, self.t_tail as u32);
         self.write_register(TDT_OFFSET, self.t_tail as u32);
+
+        let rctl_value = RCTL_BAM | RCTL_EN;
+        self.write_register(RCTL_OFFSET, rctl_value);
+        self.write_register(RDTR_OFFSET, RDTR_DELAY);
+        self.write_register(RADV_OFFSET, RADV_DELAY);
+        self.write_register(RDBAL_OFFSET, self.r_descriptor as u32);
+        self.write_register(RDBAH_OFFSET, (self.r_descriptor as u64 >> 32) as u32);
+        self.write_register(RDLEN_OFFSET, (size_of::<RDescriptor>() * R_DESC_NUM) as u32);
+        self.write_register(RDH_OFFSET, 0);
+        self.write_register(RDT_OFFSET, self.r_tail as u32);
 
     }
 
