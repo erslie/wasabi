@@ -1,10 +1,12 @@
 extern crate alloc;
-use core::{mem::size_of, ops::Add};
+use core::mem::size_of;
+use crate::info;
+use crate::pci::BusDeviceFunction;
+use crate::pci::VendorDeviceId;
 
-use crate::{executor::spawn_global, info, mmio, pci::{BarMem64, BusDeviceFunction, VendorDeviceId}, println};
+
 use crate::pci::Pci;
 use crate::result::Result;
-use alloc::vec::Vec;
 
 pub struct NicDriver {
     nic: Nic,
