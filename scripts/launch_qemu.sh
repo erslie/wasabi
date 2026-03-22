@@ -20,8 +20,10 @@ qemu-system-x86_64 \
   -device usb-kbd \
   -device usb-tablet \
   -device isa-debug-exit,iobase=0xf4,iosize=0x01 \
-  -netdev user,id=net0 \
-  -device e1000e,netdev=net0,mac=52:54:00:12:34:56 
+  -netdev user,id=net0,hostfwd=tcp:127.0.0.1:1234-:80 \
+  -object filter-dump,id=fiter0,netdev=net0,file=dump.pcap \
+  -device e1000e,netdev=net0,mac=52:54:00:12:34:56 \
+
 RETCODE=$?
 set -e
 if [ $RETCODE -eq 0 ]; then

@@ -42,6 +42,9 @@ impl NicDriver {
         let mut nic = Nic::new(mmio_base);
 
         nic.initialize(true);
+
+        let message_buffer = "Hello, World!";
+        nic.send_str(message_buffer, message_buffer.len() as u16);
         // let regs: = nic::write_register;
 
         // spawn_global(Self::run());
@@ -64,7 +67,8 @@ static mut T_DESC_RING_BUFFER: [TDescriptor; T_DESC_NUM] = [TDescriptor::new(); 
 static mut R_DESC_RING_BUFFER: [RDescriptor; R_DESC_NUM] = [RDescriptor::new(); R_DESC_NUM];
 
 const PACKET_SIZE: usize  = 2048;
-const T_DESC_CMD_RS: u8   = 0b00001000;
+const T_DESC_CMD_RSV: u8  = 0b00001000;
+const T_DESC_CMD_EOP: u8  = 0b1;
 
 const CTRL_OFFSET :u16    = 0x00000;
 const CTRL_FD: u16        = 0x00000001;
@@ -130,7 +134,7 @@ impl Nic {
                 T_DESC_RING_BUFFER[i].buffer_address = 0;
                 T_DESC_RING_BUFFER[i].length = 0;
                 T_DESC_RING_BUFFER[i].checksum_offset = 0;
-                T_DESC_RING_BUFFER[i].command = T_DESC_CMD_RS;
+                T_DESC_RING_BUFFER[i].command = T_DESC_CMD_RSV;
                 T_DESC_RING_BUFFER[i].status = 0;
                 T_DESC_RING_BUFFER[i].reserved = 0;
                 T_DESC_RING_BUFFER[i].checksum_start_field = 0;
@@ -188,6 +192,46 @@ impl Nic {
             *reg_addr = value;
         };
         info!("[NIC] *reg_addr={:?}", &reg_addr);
+    }
+
+    pub fn send<T>(&mut self, buf: *const T, length: u16) -> u8 {
+        let mut send_status = 0;
+        unsafe {
+            let desc = self.t_descriptor.add(self.t_tail as usize);
+            let mut desc_ref = *desc;
+            desc_ref.buffer_address = buf as u64;
+            desc_ref.length = length;
+            desc_ref.command = desc_ref.command | T_DESC_CMD_EOP;
+            desc_ref.status = 0;
+
+            self.t_tail = self.t_tail + 1;
+            self.write_register(TDT_OFFSET, self.t_tail as u32);
+
+            while send_status == 0 {
+                send_status = desc_ref.status & 0x0f;
+            }
+        }
+        send_status
+    }
+
+    pub fn send_str(&mut self, buf: &str, length: u16) -> u8 {
+        let mut send_status = 0;
+        unsafe {
+            let desc = self.t_descriptor.add(self.t_tail as usize);
+            let mut desc_ref = *desc;
+            desc_ref.buffer_address = buf.as_ptr() as u64;
+            desc_ref.length = length;
+            desc_ref.command = desc_ref.command | T_DESC_CMD_EOP;
+            desc_ref.status = 0;
+
+            self.t_tail = self.t_tail + 1;
+            self.write_register(TDT_OFFSET, self.t_tail as u32);
+
+            while send_status == 0 {
+                send_status = desc_ref.status & 0x0f;
+            }
+        }
+        send_status
     }
 
 }
