@@ -1,5 +1,7 @@
 extern crate alloc;
 
+use alloc::boxed::Box;
+
 use core::mem::size_of;
 use core::ptr::write_volatile;
 use core::ptr::read_volatile;
@@ -12,9 +14,17 @@ use crate::pci::VendorDeviceId;
 use crate::pci::Pci;
 use crate::result::Result;
 
-pub struct NicDriver {
-    nic: Nic,
+//TODO static nic driver instance
+//nic: Box<dyn NicDevice>;
+
+pub trait NicDevice {
+    fn initialize(&mut self, accept_all: bool);
+    fn send(&mut self, buf: *const u8, length: u16) -> u8;
+    fn receive(&mut self, buf: *const u8) -> u16;
 }
+
+pub struct  NicDriver;
+
 impl NicDriver {
     pub fn supports(vp: VendorDeviceId) -> bool {
         const VDI_LIST: [VendorDeviceId; 1] = [
@@ -42,13 +52,27 @@ impl NicDriver {
         let mmio_base = bar0.addr() as u64;
         info!("[NIC] mmio_base:{}", mmio_base);
 
-        //mmio
-        let mut nic = Nic::new(mmio_base);
+        // MEMO check duplicate?
+        let Some(vd) = pci.read_vendor_id_and_device_id(bdf) else {
+            return Err("Failed to read Vendor ID and Device ID");
+        };
 
-        nic.initialize(true);
+        let mut nic: Option<Box<dyn NicDevice>> = None;
+        // FIXME refactor
+        if ( vd.vendor, vd.device) == (0x8086, 0x10D3) {
+            nic = Some(Box::new(NicDeviceE1000E::new(mmio_base)));
+        }
+        else {
+            return Err("Unsupported NIC device");
+        }
 
-        let message_buffer = "Hello, World!";
-        nic.send_str(message_buffer, message_buffer.len() as u16);
+        if let Some(mut nic_ref) = nic {
+            nic_ref.initialize(true);
+            let message_buffer = "Hello, World!";
+            nic_ref.send(message_buffer.as_ptr() , message_buffer.len() as u16);
+        }
+
+        
         // let regs: = nic::write_register;
 
         // spawn_global(Self::run());
@@ -58,7 +82,7 @@ impl NicDriver {
 
 
 #[derive(Debug)]
-pub struct Nic {
+pub struct NicDeviceE1000E {
     mmio_base: u64,
     t_descriptor: *mut TDescriptor,
     r_descriptor: *mut RDescriptor,
@@ -109,8 +133,7 @@ const RCTL_BAM: u32       = 0x00008000;
 const RDTR_DELAY: u32     = 0x00001000;
 const RADV_DELAY: u32     = 0x00001000;
 
-impl Nic {
-
+impl  NicDeviceE1000E {
     pub fn new(mmio_base: u64) -> Self {
         let t_desc: *mut TDescriptor;
         let r_desc: *mut RDescriptor;
@@ -121,10 +144,52 @@ impl Nic {
         info!("[NIC] t_desc_ring_buffer:{:?}", t_desc);
         info!("[NIC] r_desc_ring_buffer:{:?}", r_desc);
 
-        Nic { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc, packet_buffer: 0, t_tail: 0, r_tail: 0 }
+        NicDeviceE1000E { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc, packet_buffer: 0, t_tail: 0, r_tail: 0 }
+    }
+    fn read_register(&self, offset: u16) -> u32 {
+        let reg_addr = offset + (self.mmio_base as u16);
+        reg_addr as u32
     }
 
-    pub fn initialize(&mut self, accept_all: bool) {
+    fn write_register(&self, offset: u16, value: u32) {
+        info!("{:?}", self.mmio_base);
+        let reg_addr = (offset as u64 + (self.mmio_base)) as *mut u32;
+        info!("[NIC] {offset}, {:04X}, {:?}", value, reg_addr);
+        unsafe {
+            *reg_addr = value;
+        };
+        info!("[NIC] *reg_addr={:?}", &reg_addr);
+    }
+
+        pub fn send_str(&mut self, buf: &str, length: u16) -> u8 {
+        let mut send_status = 0;
+        unsafe {
+            let desc = self.t_descriptor.add(self.t_tail as usize);
+            let mut desc_ref = *desc;
+            desc_ref.buffer_address = buf.as_ptr() as u64;
+            desc_ref.length = length;
+            desc_ref.command = desc_ref.command | T_DESC_CMD_EOP;
+            desc_ref.status = 0;
+
+            write_volatile(desc, desc_ref);
+
+            self.t_tail = self.t_tail.wrapping_add(1);
+            self.write_register(TDT_OFFSET, self.t_tail as u32);
+
+            while (send_status & 0b01) == 0 {
+                send_status = read_volatile(&(*desc).status);
+            }
+        }
+        send_status & 0b01
+    }
+}
+
+impl NicDevice for NicDeviceE1000E {
+    fn receive(&mut self, buf: *const u8) -> u16 {
+        0
+    }
+
+    fn initialize(&mut self, accept_all: bool) {
         
         unsafe {
             self.t_descriptor = T_DESC_RING_BUFFER.as_mut_ptr();
@@ -183,22 +248,7 @@ impl Nic {
 
     }
 
-    fn read_register(&self, offset: u16) -> u32 {
-        let reg_addr = offset + (self.mmio_base as u16);
-        reg_addr as u32
-    }
-
-    fn write_register(&self, offset: u16, value: u32) {
-        info!("{:?}", self.mmio_base);
-        let reg_addr = (offset as u64 + (self.mmio_base)) as *mut u32;
-        info!("[NIC] {offset}, {:04X}, {:?}", value, reg_addr);
-        unsafe {
-            *reg_addr = value;
-        };
-        info!("[NIC] *reg_addr={:?}", &reg_addr);
-    }
-
-    pub fn send<T>(&mut self, buf: *const T, length: u16) -> u8 {
+   fn send(&mut self, buf: *const u8, length: u16) -> u8 {
         let mut send_status = 0;
         unsafe {
             let desc = self.t_descriptor.add(self.t_tail as usize);
@@ -219,30 +269,8 @@ impl Nic {
         }
         send_status & 0b01
     }
-
-    pub fn send_str(&mut self, buf: &str, length: u16) -> u8 {
-        let mut send_status = 0;
-        unsafe {
-            let desc = self.t_descriptor.add(self.t_tail as usize);
-            let mut desc_ref = *desc;
-            desc_ref.buffer_address = buf.as_ptr() as u64;
-            desc_ref.length = length;
-            desc_ref.command = desc_ref.command | T_DESC_CMD_EOP;
-            desc_ref.status = 0;
-
-            write_volatile(desc, desc_ref);
-
-            self.t_tail = self.t_tail.wrapping_add(1);
-            self.write_register(TDT_OFFSET, self.t_tail as u32);
-
-            while (send_status & 0b01) == 0 {
-                send_status = read_volatile(&(*desc).status);
-            }
-        }
-        send_status & 0b01
-    }
-
 }
+
 
 const T_DESC_NUM:usize = 8;
 const R_DESC_NUM:usize = 16;
