@@ -18,7 +18,7 @@ def main():
 
     elif host_os == "Windows":
         script_path = os.path.join(cd, "launch_qemu.bat")
-        print(f"Running on Windows: {script_paht}")
+        print(f"Running on Windows: {script_path}")
         subprocess.run([script_path] + wasabi, shell=True)
 
     else:
