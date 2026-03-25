@@ -1,5 +1,9 @@
 extern crate alloc;
+
 use core::mem::size_of;
+use core::ptr::write_volatile;
+use core::ptr::read_volatile;
+
 use crate::info;
 use crate::pci::BusDeviceFunction;
 use crate::pci::VendorDeviceId;
@@ -204,14 +208,16 @@ impl Nic {
             desc_ref.command = desc_ref.command | T_DESC_CMD_EOP;
             desc_ref.status = 0;
 
-            self.t_tail = self.t_tail + 1;
+            write_volatile(desc, desc_ref);
+
+            self.t_tail = self.t_tail.wrapping_add(1);
             self.write_register(TDT_OFFSET, self.t_tail as u32);
 
-            while send_status == 0 {
-                send_status = desc_ref.status & 0x0f;
+            while (send_status & 0b01) == 0 {
+                send_status = read_volatile(&(*desc).status);
             }
         }
-        send_status
+        send_status & 0b01
     }
 
     pub fn send_str(&mut self, buf: &str, length: u16) -> u8 {
@@ -224,14 +230,16 @@ impl Nic {
             desc_ref.command = desc_ref.command | T_DESC_CMD_EOP;
             desc_ref.status = 0;
 
-            self.t_tail = self.t_tail + 1;
+            write_volatile(desc, desc_ref);
+
+            self.t_tail = self.t_tail.wrapping_add(1);
             self.write_register(TDT_OFFSET, self.t_tail as u32);
 
-            while send_status == 0 {
-                send_status = desc_ref.status & 0x0f;
+            while (send_status & 0b01) == 0 {
+                send_status = read_volatile(&(*desc).status);
             }
         }
-        send_status
+        send_status & 0b01
     }
 
 }
