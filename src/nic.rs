@@ -1,13 +1,12 @@
 extern crate alloc;
 
 use core::mem::size_of;
-use core::ptr::write_volatile;
 use core::ptr::read_volatile;
+use core::ptr::write_volatile;
 
 use crate::info;
 use crate::pci::BusDeviceFunction;
 use crate::pci::VendorDeviceId;
-
 
 use crate::pci::Pci;
 use crate::result::Result;
@@ -21,14 +20,13 @@ impl NicDriver {
             // NIC Intel e1000e
             VendorDeviceId {
                 vendor: 0x8086,
-                device: 0x10D3, 
+                device: 0x10D3,
             },
         ];
         VDI_LIST.contains(&vp)
     }
 
     pub fn attach(pci: &Pci, bdf: BusDeviceFunction) -> Result<()> {
-
         info!("Nic found at: {bdf:?}");
         pci.disable_interrupt(bdf)?;
         pci.enable_bus_master(bdf)?;
@@ -56,7 +54,6 @@ impl NicDriver {
     }
 }
 
-
 #[derive(Debug)]
 pub struct Nic {
     mmio_base: u64,
@@ -70,47 +67,46 @@ pub struct Nic {
 static mut T_DESC_RING_BUFFER: [TDescriptor; T_DESC_NUM] = [TDescriptor::new(); T_DESC_NUM];
 static mut R_DESC_RING_BUFFER: [RDescriptor; R_DESC_NUM] = [RDescriptor::new(); R_DESC_NUM];
 
-const PACKET_SIZE: usize  = 2048;
-const T_DESC_CMD_RSV: u8  = 0b00001000;
-const T_DESC_CMD_EOP: u8  = 0b1;
+const PACKET_SIZE: usize = 2048;
+const T_DESC_CMD_RSV: u8 = 0b00001000;
+const T_DESC_CMD_EOP: u8 = 0b1;
 
-const CTRL_OFFSET :u16    = 0x00000;
-const CTRL_FD: u16        = 0x00000001;
-const CTRL_ASDE: u16      = 0x000000020;
-const CTRL_SLU: u16       = 0x000000040;
+const CTRL_OFFSET: u16 = 0x00000;
+const CTRL_FD: u16 = 0x00000001;
+const CTRL_ASDE: u16 = 0x000000020;
+const CTRL_SLU: u16 = 0x000000040;
 
-const TCTL_OFFSET: u16    = 0x00400;
-const TIPG_OFFSET: u16    = 0x00410;
-const TDBAL_OFFSET: u16   = 0x03800;
-const TDBAH_OFFSET: u16   = 0x03804;
-const TDLEN_OFFSET: u16   = 0x03808;
-const TDH_OFFSET: u16     = 0x03810;
-const TDT_OFFSET: u16     = 0x03818;
-const TCTL_EN: u32        = 0x00000002;
-const TCTL_PSP: u32       = 0x00000008;
-const TCTL_CT: u32        = 0x00000100;
-const TCTL_COLD: u32      = 0x00400000;
-const TIPG_IPGT: u16      = 8;
-const TIPG_IPGR1: u16     = 8;
-const TIPG_IPGR2: u16     = 6;
+const TCTL_OFFSET: u16 = 0x00400;
+const TIPG_OFFSET: u16 = 0x00410;
+const TDBAL_OFFSET: u16 = 0x03800;
+const TDBAH_OFFSET: u16 = 0x03804;
+const TDLEN_OFFSET: u16 = 0x03808;
+const TDH_OFFSET: u16 = 0x03810;
+const TDT_OFFSET: u16 = 0x03818;
+const TCTL_EN: u32 = 0x00000002;
+const TCTL_PSP: u32 = 0x00000008;
+const TCTL_CT: u32 = 0x00000100;
+const TCTL_COLD: u32 = 0x00400000;
+const TIPG_IPGT: u16 = 8;
+const TIPG_IPGR1: u16 = 8;
+const TIPG_IPGR2: u16 = 6;
 
-const RCTL_OFFSET: u16    = 0x00100;
-const RDBAL_OFFSET: u16   = 0x02800;
-const RDBAH_OFFSET: u16   = 0x02804;
-const RDLEN_OFFSET: u16   = 0x02808;
-const RDH_OFFSET: u16     = 0x02810;
-const RDT_OFFSET: u16     = 0x02818;
-const RDTR_OFFSET: u16    = 0x02820;
-const RADV_OFFSET: u16    = 0x0282C;
-const RAL_OFFSET : u16    = 0x05400;
-const RAH_OFFSET: u16     = 0x05404;
-const RCTL_EN: u32        = 0x00000002;
-const RCTL_BAM: u32       = 0x00008000;
-const RDTR_DELAY: u32     = 0x00001000;
-const RADV_DELAY: u32     = 0x00001000;
+const RCTL_OFFSET: u16 = 0x00100;
+const RDBAL_OFFSET: u16 = 0x02800;
+const RDBAH_OFFSET: u16 = 0x02804;
+const RDLEN_OFFSET: u16 = 0x02808;
+const RDH_OFFSET: u16 = 0x02810;
+const RDT_OFFSET: u16 = 0x02818;
+const RDTR_OFFSET: u16 = 0x02820;
+const RADV_OFFSET: u16 = 0x0282C;
+const RAL_OFFSET: u16 = 0x05400;
+const RAH_OFFSET: u16 = 0x05404;
+const RCTL_EN: u32 = 0x00000002;
+const RCTL_BAM: u32 = 0x00008000;
+const RDTR_DELAY: u32 = 0x00001000;
+const RADV_DELAY: u32 = 0x00001000;
 
 impl Nic {
-
     pub fn new(mmio_base: u64) -> Self {
         let t_desc: *mut TDescriptor;
         let r_desc: *mut RDescriptor;
@@ -121,11 +117,17 @@ impl Nic {
         info!("[NIC] t_desc_ring_buffer:{:?}", t_desc);
         info!("[NIC] r_desc_ring_buffer:{:?}", r_desc);
 
-        Nic { mmio_base, t_descriptor: t_desc, r_descriptor: r_desc, packet_buffer: 0, t_tail: 0, r_tail: 0 }
+        Nic {
+            mmio_base,
+            t_descriptor: t_desc,
+            r_descriptor: r_desc,
+            packet_buffer: 0,
+            t_tail: 0,
+            r_tail: 0,
+        }
     }
 
     pub fn initialize(&mut self, accept_all: bool) {
-        
         unsafe {
             self.t_descriptor = T_DESC_RING_BUFFER.as_mut_ptr();
             self.r_descriptor = R_DESC_RING_BUFFER.as_mut_ptr();
@@ -134,7 +136,6 @@ impl Nic {
             info!("[NIC] r_desc = {:?}", self.r_descriptor);
 
             for i in 0..T_DESC_NUM {
-
                 T_DESC_RING_BUFFER[i].buffer_address = 0;
                 T_DESC_RING_BUFFER[i].length = 0;
                 T_DESC_RING_BUFFER[i].checksum_offset = 0;
@@ -143,27 +144,29 @@ impl Nic {
                 T_DESC_RING_BUFFER[i].reserved = 0;
                 T_DESC_RING_BUFFER[i].checksum_start_field = 0;
                 T_DESC_RING_BUFFER[i].special = 0;
-
             }
 
             self.packet_buffer = [[0; PACKET_SIZE]; R_DESC_NUM].as_ptr() as u64;
 
             for i in 0..R_DESC_NUM {
                 info!("[NIC] RDESC index = {i}");
-                R_DESC_RING_BUFFER[i].buffer_address = (self.packet_buffer as *const u64).add(i * PACKET_SIZE) as u64;
+                R_DESC_RING_BUFFER[i].buffer_address =
+                    (self.packet_buffer as *const u64).add(i * PACKET_SIZE) as u64;
                 R_DESC_RING_BUFFER[i].status = 0;
                 R_DESC_RING_BUFFER[i].errors = 0;
                 info!("[NIC] R_DESC_RING_BUFFER = {:?}", R_DESC_RING_BUFFER[i]);
             }
-
         }
 
         self.write_register(CTRL_OFFSET, (CTRL_FD | CTRL_ASDE | CTRL_SLU) as u32);
 
         self.t_tail = 0;
-        self.r_tail = R_DESC_NUM as u64  - 1;
+        self.r_tail = R_DESC_NUM as u64 - 1;
 
-        self.write_register(TCTL_OFFSET, (TCTL_EN | TCTL_PSP | TCTL_CT | TCTL_COLD) as u32);
+        self.write_register(
+            TCTL_OFFSET,
+            (TCTL_EN | TCTL_PSP | TCTL_CT | TCTL_COLD) as u32,
+        );
         self.write_register(TIPG_OFFSET, (TIPG_IPGT | TIPG_IPGR1 | TIPG_IPGR2) as u32);
         self.write_register(TDBAL_OFFSET, self.t_descriptor as u32);
         self.write_register(TDBAH_OFFSET, (self.t_descriptor as u64 >> 32) as u32);
@@ -180,12 +183,11 @@ impl Nic {
         self.write_register(RDLEN_OFFSET, (size_of::<RDescriptor>() * R_DESC_NUM) as u32);
         self.write_register(RDH_OFFSET, 0);
         self.write_register(RDT_OFFSET, self.r_tail as u32);
-
     }
 
     fn read_register(&self, offset: u16) -> u32 {
-        let reg_addr = offset + (self.mmio_base as u16);
-        reg_addr as u32
+        let reg_addr = (offset as u64 + self.mmio_base) as *const u32;
+        unsafe { read_volatile(reg_addr) }
     }
 
     fn write_register(&self, offset: u16, value: u32) {
@@ -241,11 +243,10 @@ impl Nic {
         }
         send_status & 0b01
     }
-
 }
 
-const T_DESC_NUM:usize = 8;
-const R_DESC_NUM:usize = 16;
+const T_DESC_NUM: usize = 8;
+const R_DESC_NUM: usize = 16;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug)]
@@ -254,7 +255,7 @@ pub struct TDescriptor {
     length: u16,
     checksum_offset: u8,
     command: u8,
-    status: u8, //4
+    status: u8,   //4
     reserved: u8, //4
     checksum_start_field: u8,
     special: u16,
@@ -262,15 +263,15 @@ pub struct TDescriptor {
 
 impl TDescriptor {
     pub const fn new() -> Self {
-        TDescriptor { 
-            buffer_address: 0, 
-            length: 0, 
-            checksum_offset: 0, 
-            command: 0, 
-            status: 4, 
-            reserved: 4, 
-            checksum_start_field: 0, 
-            special: 0, 
+        TDescriptor {
+            buffer_address: 0,
+            length: 0,
+            checksum_offset: 0,
+            command: 0,
+            status: 4,
+            reserved: 4,
+            checksum_start_field: 0,
+            special: 0,
         }
     }
 }
@@ -287,14 +288,13 @@ struct RDescriptor {
 }
 impl RDescriptor {
     pub const fn new() -> Self {
-        RDescriptor { 
-            buffer_address: 0, 
-            length: 0, 
-            reserved: 4,  
-            status: 4, 
+        RDescriptor {
+            buffer_address: 0,
+            length: 0,
+            reserved: 4,
+            status: 4,
             errors: 0,
-            special: 0, 
+            special: 0,
         }
     }
 }
-
