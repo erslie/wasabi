@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+*.efi   binary
+*.bin   binary
+*.png   binary
+*.pcap  binary
+mnt/NvVars binary
