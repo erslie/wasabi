@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use core::mem::size_of;
+use core::ptr::addr_of_mut;
 use core::ptr::read_volatile;
 use core::ptr::write_volatile;
 
@@ -68,6 +69,8 @@ static mut T_DESC_RING_BUFFER: [TDescriptor; T_DESC_NUM] = [TDescriptor::new(); 
 static mut R_DESC_RING_BUFFER: [RDescriptor; R_DESC_NUM] = [RDescriptor::new(); R_DESC_NUM];
 
 const PACKET_SIZE: usize = 2048;
+static mut RX_PACKET_BUFFER: [[u8; PACKET_SIZE]; R_DESC_NUM] = [[0; PACKET_SIZE]; R_DESC_NUM];
+
 const T_DESC_CMD_RSV: u8 = 0b00001000;
 const T_DESC_CMD_EOP: u8 = 0b1;
 
@@ -146,7 +149,7 @@ impl Nic {
                 T_DESC_RING_BUFFER[i].special = 0;
             }
 
-            self.packet_buffer = [[0; PACKET_SIZE]; R_DESC_NUM].as_ptr() as u64;
+            self.packet_buffer = addr_of_mut!(RX_PACKET_BUFFER) as u64;
 
             for i in 0..R_DESC_NUM {
                 info!("[NIC] RDESC index = {i}");
