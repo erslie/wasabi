@@ -64,6 +64,7 @@ pub struct Nic {
     packet_buffer: u64,
     t_tail: u64,
     r_tail: u64,
+    rx_cur: usize,
 }
 
 static mut T_DESC_RING_BUFFER: [TDescriptor; T_DESC_NUM] = [TDescriptor::new(); T_DESC_NUM];
@@ -165,6 +166,7 @@ impl Nic {
         self.write_register(CTRL_OFFSET, (CTRL_FD | CTRL_ASDE | CTRL_SLU) as u32);
 
         self.t_tail = 0;
+        self.rx_cur = 0;
         self.r_tail = R_DESC_NUM as u64 - 1;
 
         self.write_register(
@@ -252,6 +254,33 @@ impl Nic {
             }
         }
         send_status & 0b01
+    }
+
+    pub fn receive(&mut self) -> Option<alloc::vec::Vec<u8>> {
+        let desc = unsafe { &mut *self.r_descriptor.add(self.rx_cur) };
+
+        let status = unsafe { read_volatile(&desc.status) };
+        if status & 0b01 == 0 {
+            return None;
+        }
+
+        let len = unsafe { read_volatile(&desc.length) } as usize;
+        let buf_addr = desc.buffer_address as *const u8;
+
+        let mut packet = alloc::vec::Vec::<u8>::with_capacity(len);
+        unsafe {
+            for i in 0..len {
+                packet.push(read_volatile(buf_addr.add(i)));
+            }
+        }
+
+        unsafe {
+            write_volatile(&mut desc.status, 0);
+        }
+        self.write_register(RDT_OFFSET, self.rx_cur as u32);
+        self.rx_cur = (self.rx_cur + 1) % R_DESC_NUM;
+
+        Some(packet)
     }
 
     pub fn read_mac(&self) -> [u8; 6] {
