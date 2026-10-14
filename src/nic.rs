@@ -129,6 +129,7 @@ impl Nic {
             packet_buffer: 0,
             t_tail: 0,
             r_tail: 0,
+            rx_cur: 0,
         }
     }
 
