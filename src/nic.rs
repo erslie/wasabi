@@ -1,6 +1,7 @@
 extern crate alloc;
 
 use core::mem::size_of;
+use core::ptr::addr_of;
 use core::ptr::addr_of_mut;
 use core::ptr::read_volatile;
 use core::ptr::write_volatile;
@@ -153,11 +154,11 @@ impl Nic {
 
             for i in 0..R_DESC_NUM {
                 info!("[NIC] RDESC index = {i}");
-                R_DESC_RING_BUFFER[i].buffer_address =
-                    (self.packet_buffer as *const u64).add(i * PACKET_SIZE) as u64;
+                let buf_addr = addr_of!(RX_PACKET_BUFFER[i]) as u64;
+                R_DESC_RING_BUFFER[i].buffer_address = buf_addr;
                 R_DESC_RING_BUFFER[i].status = 0;
                 R_DESC_RING_BUFFER[i].errors = 0;
-                info!("[NIC] R_DESC_RING_BUFFER = {:?}", R_DESC_RING_BUFFER[i]);
+                info!("[NIC] RDESC[{i}], buf = {:#018X}", buf_addr);
             }
         }
 
