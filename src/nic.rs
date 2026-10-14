@@ -187,6 +187,12 @@ impl Nic {
         self.write_register(RDLEN_OFFSET, (size_of::<RDescriptor>() * R_DESC_NUM) as u32);
         self.write_register(RDH_OFFSET, 0);
         self.write_register(RDT_OFFSET, self.r_tail as u32);
+
+        let mac_addr = self.read_mac();
+        info!(
+            "[NIC] MAC = {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]
+        );
     }
 
     fn read_register(&self, offset: u16) -> u32 {
@@ -246,6 +252,19 @@ impl Nic {
             }
         }
         send_status & 0b01
+    }
+
+    pub fn read_mac(&self) -> [u8; 6] {
+        let low = self.read_register(RAL_OFFSET);
+        let high = self.read_register(RAH_OFFSET);
+        [
+            (low & 0xFF) as u8,
+            ((low >> 8) & 0xFF) as u8,
+            ((low >> 16) & 0xFF) as u8,
+            ((low >> 24) & 0xFF) as u8,
+            (high & 0xFF) as u8,
+            ((high >> 8) & 0xFF) as u8,
+        ]
     }
 }
 
