@@ -272,8 +272,8 @@ impl TDescriptor {
             length: 0,
             checksum_offset: 0,
             command: 0,
-            status: 4,
-            reserved: 4,
+            status: 0,
+            reserved: 0,
             checksum_start_field: 0,
             special: 0,
         }
@@ -295,8 +295,8 @@ impl RDescriptor {
         RDescriptor {
             buffer_address: 0,
             length: 0,
-            reserved: 4,
-            status: 4,
+            reserved: 0,
+            status: 0,
             errors: 0,
             special: 0,
         }
